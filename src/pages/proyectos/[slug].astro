@@ -1,0 +1,300 @@
+---
+import { Image } from "astro:assets";
+import Base from "../../layouts/Base.astro";
+import { photo, projects, studio, type Project } from "../../data/site";
+
+export function getStaticPaths() {
+  return projects.map((project, i) => ({
+    params: { slug: project.slug },
+    props: { project, next: projects[(i + 1) % projects.length] },
+  }));
+}
+
+interface Props {
+  project: Project;
+  next: Project;
+}
+
+const { project, next } = Astro.props;
+const [cover, ...rest] = project.images;
+---
+
+<Base title={`${project.title} | ${studio.name}`} description={project.description}>
+  <main class="project">
+    <header class="project__head">
+      <a class="link back" href="/#proyectos" data-in>Volver a la sala</a>
+      <h1 class="project__title">{project.title}</h1>
+      <dl class="meta" data-in>
+        <div>
+          <dt>Tipo</dt>
+          <dd>{project.category}</dd>
+        </div>
+        <div>
+          <dt>Lugar</dt>
+          <dd>{project.place}</dd>
+        </div>
+        <div>
+          <dt>Año</dt>
+          <dd>{project.year}</dd>
+        </div>
+      </dl>
+    </header>
+
+    <figure class="cover" data-cover>
+      <Image
+        src={photo(cover)}
+        alt={`${project.title}: vista principal`}
+        widths={[800, 1200, 1800]}
+        sizes="100vw"
+        loading="eager"
+      />
+    </figure>
+
+    <section class="story">
+      <p class="story__lead" data-reveal>{project.description}</p>
+      <ul class="tags" data-reveal>
+        {project.tags.map((tag) => <li>{tag}</li>)}
+      </ul>
+    </section>
+
+    <section class="shots" aria-label="Galería del proyecto">
+      {
+        rest.map((name, i) => (
+          <figure class={`shot shot--${i + 1}`} data-shot>
+            <Image
+              src={photo(name)}
+              alt={`${project.title}: detalle ${i + 1}`}
+              widths={[600, 1000, 1600]}
+              sizes="(min-width: 900px) 60vw, 92vw"
+              loading="lazy"
+            />
+          </figure>
+        ))
+      }
+    </section>
+
+    <a class="next" href={`/proyectos/${next.slug}/`}>
+      <span class="next__door" aria-hidden="true">
+        <Image src={photo(next.images[0])} alt="" widths={[400, 700]} sizes="14rem" loading="lazy" />
+        <i></i>
+        <i></i>
+      </span>
+      <span class="next__text">
+        <span class="room-name">Siguiente proyecto</span>
+        <b>{next.title}</b>
+      </span>
+    </a>
+
+    <footer class="project__foot">
+      <span>© {new Date().getFullYear()} {studio.name}</span>
+      <a class="link" href="/#contacto">Contacto</a>
+    </footer>
+  </main>
+</Base>
+
+<script>
+  import "../../scripts/project.ts";
+</script>
+
+<style>
+  .project {
+    padding: calc(var(--header-h) + clamp(2rem, 7vh, 5rem)) var(--pad) 0;
+  }
+
+  .project__head {
+    display: grid;
+    gap: clamp(1.4rem, 3vh, 2.2rem);
+    max-width: 82rem;
+    margin-inline: auto;
+  }
+
+  .back {
+    justify-self: start;
+    font-size: 0.78rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .project__title {
+    font: 300 clamp(3rem, 10vw, 9rem) / 0.98 var(--serif);
+    letter-spacing: -0.02em;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem clamp(2rem, 6vw, 5rem);
+    margin: 0;
+  }
+
+  .meta dt {
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .meta dd {
+    margin: 0.2rem 0 0;
+    font: 400 1.35rem/1.2 var(--serif);
+  }
+
+  .cover {
+    overflow: hidden;
+    max-width: 82rem;
+    margin: clamp(2.5rem, 7vh, 4.5rem) auto 0;
+    aspect-ratio: 16 / 9;
+    background: var(--linen);
+  }
+
+  .cover :global(img),
+  .shot :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .cover :global(img) {
+    height: 116%;
+  }
+
+  .story {
+    display: grid;
+    gap: 2rem;
+    max-width: 82rem;
+    margin: clamp(4rem, 12vh, 8rem) auto;
+  }
+
+  .story__lead {
+    max-width: 28em;
+    font: 300 clamp(1.5rem, 2.9vw, 2.6rem) / 1.25 var(--serif);
+    text-wrap: pretty;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .tags li {
+    padding: 0.55em 1.1em;
+    border: 1px solid var(--hair);
+    font-size: 0.74rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .shots {
+    display: grid;
+    gap: clamp(1.25rem, 3vw, 3rem);
+    max-width: 82rem;
+    margin-inline: auto;
+  }
+
+  .shot {
+    overflow: hidden;
+    background: var(--linen);
+    aspect-ratio: 4 / 3;
+  }
+
+  @media (min-width: 900px) {
+    .shots {
+      grid-template-columns: repeat(12, 1fr);
+      align-items: start;
+    }
+
+    .shot--1 {
+      grid-column: 1 / span 7;
+    }
+
+    .shot--2 {
+      grid-column: 9 / span 4;
+      aspect-ratio: 3 / 4;
+      margin-top: 22%;
+    }
+
+    .shot--3 {
+      grid-column: 3 / span 9;
+      aspect-ratio: 16 / 9;
+    }
+  }
+
+  .next {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(1.5rem, 5vw, 4rem);
+    margin: clamp(5rem, 16vh, 10rem) calc(var(--pad) * -1) 0;
+    padding: clamp(4rem, 12vh, 7rem) var(--pad);
+    background: var(--linen);
+  }
+
+  .next__door {
+    position: relative;
+    overflow: hidden;
+    width: clamp(9rem, 16vw, 14rem);
+    aspect-ratio: 1 / 2;
+    border: 6px solid var(--trim);
+    border-bottom: 0;
+  }
+
+  .next__door :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .next__door i {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 50.5%;
+    background: var(--olive);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    transition: transform 0.9s var(--ease);
+  }
+
+  .next__door i:first-of-type {
+    left: 0;
+    transform-origin: left;
+  }
+
+  .next__door i:last-of-type {
+    right: 0;
+    transform-origin: right;
+  }
+
+  .next:hover .next__door i,
+  .next:focus-visible .next__door i {
+    transform: scaleX(0.08);
+  }
+
+  .next__text {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .next__text b {
+    font: 300 clamp(2.4rem, 6vw, 5.5rem) / 1 var(--serif);
+    letter-spacing: -0.015em;
+  }
+
+  .project__foot {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-block: 2rem;
+    font-size: 0.78rem;
+    color: var(--text);
+  }
+
+  @media (hover: none) {
+    .next__door i {
+      transform: scaleX(0.08);
+    }
+  }
+</style>

@@ -1,0 +1,58 @@
+---
+/**
+ * Una habitación de la casa. En móvil es una sección normal; en el recorrido
+ * de escritorio es un alzado (pared + piso) con el hueco de la puerta que
+ * lleva a la siguiente habitación.
+ */
+interface Props {
+  id: string;
+  label: string;
+  wall: string;
+  floor: string;
+  /** Hueco de la puerta en fracciones del viewport: x (izquierda), w (ancho), top. */
+  door?: { x?: number; w: number; top: number };
+  /** Pared más ancha que la pantalla: se recorre de lado y la puerta queda al final. */
+  wide?: boolean;
+  /** Rótulo sobre la puerta: nombre de la habitación siguiente. */
+  sign?: string;
+}
+
+const { id, label, wall, floor, door, wide = false, sign } = Astro.props;
+
+const vars = [`--wall:${wall}`, `--floor:${floor}`];
+if (door) {
+  vars.push(`--dw:${door.w * 100}vw`, `--dt:${door.top * 100}vh`);
+  if (!wide) vars.push(`--dx:${(door.x ?? 0) * 100}vw`);
+}
+const doorData = door ? `${wide ? 0.5 - door.w / 2 : door.x},${door.w},${door.top}` : undefined;
+---
+
+<section
+  class:list={["room", wide && "room--wide"]}
+  id={id}
+  aria-label={label}
+  data-door={doorData}
+  style={vars.join(";")}
+>
+  <div class="room__in">
+    <div class="room__out">
+      <div class="room__pan">
+        <div class="room__wall decor" aria-hidden="true"></div>
+        <div class="room__floor decor" aria-hidden="true"><i></i></div>
+        {
+          door && (
+            <div class="door decor" aria-hidden="true">
+              {sign && <span class="door__sign">{sign}</span>}
+              <span class="door__beyond" />
+              <slot name="door" />
+            </div>
+          )
+        }
+        <div class="room__content">
+          <slot />
+        </div>
+      </div>
+    </div>
+    <div class="room__shade decor" aria-hidden="true"></div>
+  </div>
+</section>

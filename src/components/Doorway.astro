@@ -1,0 +1,27 @@
+---
+import { Image } from "astro:assets";
+import { photo } from "../data/site";
+
+interface Props {
+  name: string;
+  alt: string;
+  /** Si es true, en el recorrido de escritorio se cuelga como cuadro en la pared. */
+  hang?: boolean;
+  class?: string;
+  eager?: boolean;
+}
+
+const { name, alt, hang = false, class: cls, eager = false } = Astro.props;
+---
+
+<figure class:list={["doorway", hang && "doorway--hang", cls]} data-doorway>
+  <Image
+    src={photo(name)}
+    alt={alt}
+    widths={[480, 800, 1200]}
+    sizes="(min-width: 1024px) 24vw, 90vw"
+    loading={eager ? "eager" : "lazy"}
+  />
+  <span class="doorway__leaf doorway__leaf--l" aria-hidden="true"></span>
+  <span class="doorway__leaf doorway__leaf--r" aria-hidden="true"></span>
+</figure>

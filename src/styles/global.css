@@ -1,0 +1,346 @@
+:root {
+  --olive: #696c51;
+  --olive-deep: #4f5240;
+  --sage: #969878;
+  --ink: #1a1a18;
+  --paper: #f7f5f2;
+  --linen: #e5e1dc;
+  --trim: #fbfaf8;
+  --brass: #b29a5f;
+
+  --text: rgba(26, 26, 24, 0.72);
+  --hair: rgba(26, 26, 24, 0.16);
+
+  --serif: "Cormorant Garamond", "Cormorant", Georgia, serif;
+  --sans: "Bricolage Grotesque Variable", "Bricolage Grotesque", system-ui, sans-serif;
+
+  --pad: clamp(1.25rem, 5vw, 5rem);
+  --header-h: 4.5rem;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* z-index: stage 0 · hud 30 · header 40 · curtain 60 */
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-weight: 300;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+p,
+figure,
+blockquote,
+ul {
+  margin: 0;
+  padding: 0;
+}
+
+ul {
+  list-style: none;
+}
+
+::selection {
+  background: var(--olive);
+  color: var(--paper);
+}
+
+:focus-visible {
+  outline: 2px solid var(--olive);
+  outline-offset: 3px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@view-transition {
+  navigation: auto;
+}
+
+/* ───────── Tipografía ───────── */
+
+.room-name {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: clamp(1.05rem, 1.25vw, 1.35rem);
+  line-height: 1.2;
+  color: var(--olive);
+}
+
+.title {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: clamp(2.2rem, min(4.2vw, 7.6vh), 4.6rem);
+  line-height: 1.04;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+
+.title em {
+  font-style: italic;
+}
+
+.body {
+  font-size: clamp(0.92rem, 1.02vw, 1.05rem);
+  line-height: 1.75;
+  color: var(--text);
+  max-width: 46ch;
+}
+
+.small {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+/* ───────── Botón y enlaces ───────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.9em;
+  padding: 1.05em 1.9em;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  font: 400 0.72rem/1 var(--sans);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.4s var(--ease),
+    border-color 0.4s var(--ease),
+    transform 0.2s var(--ease);
+}
+
+.btn::after {
+  content: "";
+  width: 1.6em;
+  height: 1px;
+  background: currentColor;
+  transform-origin: left;
+  transition: transform 0.4s var(--ease);
+}
+
+.btn:hover {
+  background: var(--olive);
+  border-color: var(--olive);
+}
+
+.btn:hover::after {
+  transform: scaleX(1.5);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.link {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 0.15em;
+  color: var(--ink);
+}
+
+.link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: currentColor;
+  transform-origin: left;
+  transition: transform 0.45s var(--ease);
+}
+
+.link:hover::after {
+  transform-origin: right;
+  transform: scaleX(0);
+}
+
+/* ───────── Cabecera ───────── */
+
+.site-header {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 40;
+  height: var(--header-h);
+  padding-inline: var(--pad);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  background: rgba(247, 245, 242, 0.86);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+html.walk .site-header {
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.logo {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.logo b {
+  font: 400 1.25rem/1 var(--serif);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+}
+
+.logo span {
+  margin-top: 0.3em;
+  font-size: 0.56rem;
+  letter-spacing: 0.62em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(1rem, 2.4vw, 2.4rem);
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.nav a {
+  position: relative;
+  padding-block: 0.6em;
+  color: var(--text);
+  transition: color 0.3s;
+}
+
+.nav a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.2em;
+  height: 1px;
+  background: var(--olive);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.45s var(--ease);
+}
+
+.nav a:hover,
+.nav a[aria-current="true"] {
+  color: var(--ink);
+}
+
+.nav a:hover::after,
+.nav a[aria-current="true"]::after {
+  transform: scaleX(1);
+}
+
+@media (max-width: 719px) {
+  .nav .nav__extra {
+    display: none;
+  }
+}
+
+/* ───────── Cortina para saltos de navegación ───────── */
+
+.curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--ink);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ───────── Marco / umbral con foto ───────── */
+
+.doorway {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-width: 30rem;
+  aspect-ratio: 4 / 5;
+  max-height: 70vh;
+  border: 6px solid var(--trim);
+  background: var(--linen);
+  box-shadow: 0 1.6rem 2rem -1.2rem rgba(60, 50, 35, 0.4);
+}
+
+.doorway img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.doorway__leaf {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50.5%;
+  background: var(--olive);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.doorway__leaf--l {
+  left: 0;
+  transform-origin: left;
+}
+
+.doorway__leaf--r {
+  right: 0;
+  transform-origin: right;
+}
+
+html:not(.js) .doorway__leaf {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doorway__leaf {
+    display: none;
+  }
+}

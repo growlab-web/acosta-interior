@@ -1,0 +1,229 @@
+---
+import { Image } from "astro:assets";
+import Base from "../layouts/Base.astro";
+import Room from "../components/Room.astro";
+import Doorway from "../components/Doorway.astro";
+import FloorPlan from "../components/FloorPlan.astro";
+import { photo, projects, services, studio, testimonials } from "../data/site";
+import "../styles/house.css";
+
+// Colgado tipo salón: alturas y formatos alternados para que la pared tenga ritmo.
+const hang = [
+  { tall: false, top: "17vh" },
+  { tall: true, top: "12vh" },
+  { tall: false, top: "22vh" },
+  { tall: true, top: "14vh" },
+  { tall: false, top: "18vh" },
+];
+---
+
+<Base home>
+  <main id="house">
+    <!-- 1 · Fachada -->
+    <Room id="fachada" label="Inicio" wall="#d9d3c9" floor="#b7afa2" door={{ x: 0.41, w: 0.18, top: 0.2 }}>
+      <Fragment slot="door">
+        <span class="leaf leaf--l"></span>
+        <span class="leaf leaf--r"></span>
+      </Fragment>
+
+      <h1 class="wordmark" aria-label="Acosta Interior">
+        <span class="wordmark__a" aria-hidden="true">Acosta</span>
+        <span class="wordmark__b" aria-hidden="true">Interior</span>
+      </h1>
+      <div class="hero__copy" data-hero>
+        <p class="body">
+          Estudio de diseño interior en Lima. Desliza para cruzar la puerta y recorrer la casa, habitación por
+          habitación.
+        </p>
+      </div>
+      <div class="hero__cta" data-hero>
+        <a class="btn" href="#proyectos">Ver proyectos</a>
+      </div>
+      <Doorway name="room-fachada" alt="Sala luminosa diseñada por Acosta Interior" eager />
+    </Room>
+
+    <!-- 2 · Recibidor: el estudio -->
+    <Room
+      id="estudio"
+      label="El estudio"
+      wall="#f1eee8"
+      floor="#c9bfb0"
+      door={{ x: 0.765, w: 0.15, top: 0.24 }}
+      sign="Sala"
+    >
+      <Doorway
+        name="room-recibidor"
+        alt="Sala con lámparas de fibra natural y paleta cálida"
+        hang
+        class="about__photo"
+      />
+      <div class="about__text stack">
+        <p class="room-name" data-reveal>Recibidor</p>
+        <h2 class="title" data-reveal>Espacios que reflejan <em>quién eres</em></h2>
+        <p class="body" data-reveal>
+          Soy Andrea Acosta, arquitecta y diseñadora de interiores con sede en Lima. Mi trabajo combina rigor técnico
+          con sensibilidad artística para crear espacios con propósito, materialidad y emoción.
+        </p>
+        <p class="about__sign" data-reveal>Andrea Acosta, fundadora del estudio</p>
+      </div>
+    </Room>
+
+    <!-- 3 · Sala: proyectos -->
+    <Room id="proyectos" label="Proyectos" wall="#ebe7e0" floor="#bfb5a6" door={{ w: 0.16, top: 0.22 }} wide sign="Cocina">
+      <div class="sala__intro stack">
+        <p class="room-name" data-reveal>Sala</p>
+        <h2 class="title" data-reveal>Proyectos colgados en la pared</h2>
+        <p class="body" data-reveal>
+          Cinco espacios recientes, residenciales y comerciales. Sigue caminando a lo largo de la sala y entra al que
+          quieras ver completo.
+        </p>
+      </div>
+      <ul class="gallery">
+        {
+          projects.map((p, i) => (
+            <li
+              class:list={["frame", hang[i % hang.length].tall && "frame--tall"]}
+              style={`--hang:${hang[i % hang.length].top}`}
+              data-reveal
+            >
+              <a href={`/proyectos/${p.slug}/`}>
+                <span class="frame__mat">
+                  <span class="frame__pic">
+                    <Image
+                      src={photo(p.images[0])}
+                      alt={`${p.title}, ${p.place}`}
+                      widths={[480, 800, 1200]}
+                      sizes="(min-width: 1024px) 54vh, (min-width: 640px) 45vw, 90vw"
+                      loading={i < 2 ? "eager" : "lazy"}
+                    />
+                  </span>
+                </span>
+                <span class="frame__cap">
+                  <b>{p.title}</b>
+                  <span>
+                    {p.category}, {p.year}
+                  </span>
+                </span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </Room>
+
+    <!-- 4 · Cocina: servicios -->
+    <Room
+      id="servicios"
+      label="Servicios"
+      wall="#d8dac8"
+      floor="#b9b3a0"
+      door={{ x: 0.085, w: 0.15, top: 0.24 }}
+      sign="Comedor"
+    >
+      <Doorway
+        name="room-cocina"
+        alt="Cocina con isla de mármol y lámparas de vidrio"
+        hang
+        class="kitchen__photo"
+      />
+      <div class="kitchen__body stack">
+        <p class="room-name" data-reveal>Cocina</p>
+        <h2 class="title" data-reveal>Aquí se cocina cada proyecto</h2>
+        <ul class="services">
+          {
+            services.map((s) => (
+              <li data-reveal>
+                <h3>{s.title}</h3>
+                <p>{s.text}</p>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </Room>
+
+    <!-- 5 · Comedor: testimonios -->
+    <Room
+      id="testimonios"
+      label="Testimonios"
+      wall="#efeae2"
+      floor="#c4b9a8"
+      door={{ x: 0.775, w: 0.15, top: 0.24 }}
+      sign="Estudio"
+    >
+      <div class="lamps decor" aria-hidden="true">
+        <i style="--drop:9vh"></i>
+        <i style="--drop:6vh"></i>
+        <i style="--drop:11vh"></i>
+      </div>
+      <Doorway name="room-comedor" alt="Comedor con sillas verdes y espejo redondo" />
+      <div class="dining__body stack">
+        <p class="room-name" data-reveal>Comedor</p>
+        <h2 class="sr-only">Lo que dicen los clientes</h2>
+        <div class="quotes" data-reveal>
+          {
+            testimonials.map((t) => (
+              <blockquote class="quote">
+                <p>“{t.quote}”</p>
+                <footer>
+                  <b>{t.author}</b>, {t.project}
+                </footer>
+              </blockquote>
+            ))
+          }
+        </div>
+        <div class="quote-dots" aria-hidden="true" data-reveal>
+          {testimonials.map(() => <i />)}
+        </div>
+      </div>
+    </Room>
+
+    <!-- 6 · Estudio: contacto -->
+    <Room id="contacto" label="Contacto" wall="#e6e2dc" floor="#bdb3a4">
+      <Doorway name="room-estudio" alt="Sala con sofá azul y piso de madera en espiga" />
+      <div class="contact">
+        <div class="contact__intro stack">
+          <p class="room-name" data-reveal>Estudio</p>
+          <h2 class="title" data-reveal>¿Comenzamos?</h2>
+          <p class="body" data-reveal>
+            Cuéntame sobre tu espacio: qué es hoy y cómo quieres vivirlo. Te respondo en un par de días con los
+            siguientes pasos.
+          </p>
+          <p class="contact__links" data-reveal>
+            <a class="link" href={`mailto:${studio.email}`}>{studio.email}</a>
+            <a class="link" href={studio.instagram} target="_blank" rel="noopener noreferrer">Instagram</a>
+          </p>
+        </div>
+
+        <form class="form" data-contact-form data-email={studio.email} data-reveal>
+          <div class="field">
+            <label for="f-name">Nombre</label>
+            <input id="f-name" name="name" type="text" autocomplete="name" required />
+          </div>
+          <div class="field">
+            <label for="f-email">Correo</label>
+            <input id="f-email" name="email" type="email" autocomplete="email" required />
+          </div>
+          <div class="field">
+            <label for="f-msg">Tu proyecto</label>
+            <textarea id="f-msg" name="message" rows="3" required></textarea>
+          </div>
+          <div class="form__row">
+            <button class="btn" type="submit">Enviar consulta</button>
+            <p class="form__status" role="status" data-form-status></p>
+          </div>
+        </form>
+      </div>
+      <footer class="house-footer">
+        <span>© {new Date().getFullYear()} {studio.name}</span>
+        <span>{studio.city}</span>
+      </footer>
+    </Room>
+  </main>
+
+  <FloorPlan />
+</Base>
+
+<script>
+  import "../scripts/house.ts";
+</script>

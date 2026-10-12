@@ -1,0 +1,21 @@
+---
+interface Props {
+  home?: boolean;
+}
+
+const { home = false } = Astro.props;
+const to = (id: string) => (home ? `#${id}` : `/#${id}`);
+---
+
+<header class="site-header">
+  <a class="logo" href={to("fachada")} aria-label="Acosta Interior, inicio">
+    <b>Acosta</b>
+    <span>Interior</span>
+  </a>
+  <nav class="nav" aria-label="Principal">
+    <a class="nav__extra" href={to("estudio")} data-nav="estudio">Estudio</a>
+    <a href={to("proyectos")} data-nav="proyectos">Proyectos</a>
+    <a class="nav__extra" href={to("servicios")} data-nav="servicios">Servicios</a>
+    <a href={to("contacto")} data-nav="contacto">Contacto</a>
+  </nav>
+</header>

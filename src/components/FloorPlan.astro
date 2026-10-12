@@ -1,0 +1,108 @@
+---
+import { rooms } from "../data/site";
+
+/** Planta de la casa: sirve de mapa y de navegación. Coordenadas en un viewBox 120×86. */
+const shapes: Record<string, { x: number; y: number; w: number; h: number }> = {
+  contacto: { x: 2, y: 2, w: 34, h: 36 },
+  testimonios: { x: 36, y: 2, w: 40, h: 36 },
+  servicios: { x: 76, y: 2, w: 42, h: 36 },
+  estudio: { x: 36, y: 38, w: 30, h: 38 },
+  proyectos: { x: 66, y: 38, w: 52, h: 38 },
+  fachada: { x: 43, y: 76, w: 16, h: 8 },
+};
+---
+
+<aside class="plan" aria-label="Plano de la casa">
+  <svg viewBox="0 0 120 86" role="group" aria-label="Habitaciones">
+    <rect class="plan__garden" x="2" y="38" width="34" height="38"></rect>
+    {
+      rooms.map((r) => {
+        const s = shapes[r.id];
+        return (
+          <a
+            href={`#${r.id}`}
+            data-plan={r.id}
+            data-room={r.room}
+            data-section={r.section}
+            aria-label={`${r.room}: ${r.section}`}
+          >
+            <rect x={s.x} y={s.y} width={s.w} height={s.h} />
+          </a>
+        );
+      })
+    }
+  </svg>
+  <p class="plan__label" aria-live="polite">
+    <b data-plan-room>{rooms[0].room}</b>
+    <span data-plan-section>{rooms[0].section}</span>
+  </p>
+</aside>
+
+<style>
+  .plan {
+    display: none;
+  }
+
+  :global(html.walk) .plan {
+    position: fixed;
+    left: var(--pad);
+    bottom: 3.2vh;
+    z-index: 30;
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+  }
+
+  svg {
+    width: clamp(6.5rem, 9vw, 8.5rem);
+    overflow: visible;
+  }
+
+  rect {
+    fill: rgba(251, 250, 248, 0.5);
+    stroke: var(--ink);
+    stroke-width: 0.9;
+    vector-effect: non-scaling-stroke;
+    transition: fill 0.4s var(--ease);
+  }
+
+  .plan__garden {
+    fill: none;
+    stroke-dasharray: 2 2;
+    opacity: 0.45;
+  }
+
+  a:hover rect {
+    fill: var(--sage);
+  }
+
+  a[aria-current="true"] rect {
+    fill: var(--olive);
+  }
+
+  a:focus-visible {
+    outline: none;
+  }
+
+  a:focus-visible rect {
+    stroke-width: 2.4;
+  }
+
+  .plan__label {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+    padding-bottom: 0.1rem;
+  }
+
+  .plan__label b {
+    font: italic 400 1.2rem/1.1 var(--serif);
+  }
+
+  .plan__label span {
+    font-size: 0.66rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+</style>

@@ -1,0 +1,49 @@
+---
+import "@fontsource-variable/bricolage-grotesque";
+import "@fontsource/cormorant-garamond/300.css";
+import "@fontsource/cormorant-garamond/300-italic.css";
+import "@fontsource/cormorant-garamond/400.css";
+import "@fontsource/cormorant-garamond/400-italic.css";
+import "../styles/global.css";
+import Header from "../components/Header.astro";
+import { studio } from "../data/site";
+
+interface Props {
+  title?: string;
+  description?: string;
+  home?: boolean;
+}
+
+const {
+  title = `${studio.name} | ${studio.tagline} en Lima`,
+  description = "Estudio de diseño interior en Lima. Proyectos residenciales y comerciales con propósito, materialidad y emoción.",
+  home = false,
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#f7f5f2" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script is:inline define:vars={{ home }}>
+      // Antes del primer pintado: marca JS y, en la portada, el modo "recorrido".
+      const root = document.documentElement;
+      root.classList.add("js");
+      const walk = "(min-width: 1024px) and (min-height: 640px) and (prefers-reduced-motion: no-preference)";
+      if (home && window.matchMedia(walk).matches) root.classList.add("walk");
+    </script>
+  </head>
+  <body>
+    <Header home={home} />
+    <slot />
+    <div class="curtain" aria-hidden="true"></div>
+  </body>
+</html>
