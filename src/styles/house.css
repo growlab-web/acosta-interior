@@ -290,6 +290,13 @@ html.walk {
   --floor-h: 24vh;
   --floor-line: 76vh;
   --jamb: 0.62vw;
+  --base: #8c8b79;
+  --on-floor: #ece8e1;
+}
+
+/* Sobre las paredes grises el oliva claro pierde contraste: se usa el profundo. */
+html.walk .room-name {
+  color: var(--olive-deep);
 }
 
 html.walk .decor {
@@ -339,20 +346,24 @@ html.walk .room--wide .room__pan {
 }
 
 /* Pared: luz cenital suave, zócalo y el hueco de la puerta recortado. */
+/* Mismo lenguaje que el render de la fachada: zócalo oliva grisáceo, paneles con
+   juntas horizontales, un filete de latón y luz rasante desde el techo. */
 html.walk .room__wall {
   position: absolute;
   inset: 0;
   background:
     linear-gradient(
       to bottom,
-      transparent calc(var(--floor-line) - 1.5vh),
-      rgba(26, 26, 24, 0.1) calc(var(--floor-line) - 1.5vh),
-      var(--trim) calc(var(--floor-line) - 1.5vh + 1px),
-      var(--trim) var(--floor-line),
+      transparent calc(var(--floor-line) - 2.6vh),
+      rgba(26, 26, 24, 0.25) calc(var(--floor-line) - 2.6vh),
+      var(--base) calc(var(--floor-line) - 2.6vh + 1px),
+      var(--base) var(--floor-line),
       transparent var(--floor-line)
     ),
-    radial-gradient(90vw 70vh at 28vw -8vh, rgba(255, 255, 255, 0.55), transparent 70%),
-    linear-gradient(to bottom, transparent 40vh, rgba(26, 26, 24, 0.05) var(--floor-line)),
+    linear-gradient(to bottom, transparent 9.5vh, rgba(190, 168, 110, 0.75) 9.5vh, rgba(190, 168, 110, 0.75) calc(9.5vh + 1px), transparent calc(9.5vh + 1px)),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 9.4vh, rgba(26, 26, 24, 0.07) 9.4vh, rgba(26, 26, 24, 0.07) 9.5vh),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.5), transparent 16vh),
+    linear-gradient(to bottom, transparent 40vh, rgba(26, 26, 24, 0.07) var(--floor-line)),
     var(--wall);
 }
 
@@ -402,9 +413,10 @@ html.walk .room__floor i {
   transform: rotateX(90deg);
   background: repeating-linear-gradient(
     90deg,
-    rgba(26, 26, 24, 0.13) 0,
-    rgba(26, 26, 24, 0.13) 1px,
-    transparent 1px,
+    rgba(0, 0, 0, 0.5) 0,
+    rgba(0, 0, 0, 0.5) 1px,
+    rgba(255, 255, 255, 0.035) 1px,
+    transparent 2.4vw,
     transparent 7vw
   );
 }
@@ -414,8 +426,8 @@ html.walk .room--wide .room__floor i {
   transform: none;
   background: repeating-linear-gradient(
     to bottom,
-    rgba(26, 26, 24, 0.1) 0,
-    rgba(26, 26, 24, 0.1) 1px,
+    rgba(0, 0, 0, 0.45) 0,
+    rgba(0, 0, 0, 0.45) 1px,
     transparent 1px,
     transparent 4.2vh
   );
@@ -425,7 +437,7 @@ html.walk .room__floor::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, rgba(26, 26, 24, 0.16), transparent 55%);
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), transparent 45%, rgba(255, 255, 255, 0.04));
 }
 
 /* Puerta: marco, canto del muro y lo que se intuye al fondo. */
@@ -441,9 +453,11 @@ html.walk .door::before {
   content: "";
   position: absolute;
   inset: calc(var(--jamb) * -1) calc(var(--jamb) * -1) 0;
-  border: var(--jamb) solid var(--trim);
+  border: var(--jamb) solid var(--olive);
   border-bottom: 0;
-  box-shadow: 0 0.4vh 1.4vh -0.4vh rgba(60, 50, 35, 0.35);
+  box-shadow:
+    inset 0 0 0 1px rgba(26, 26, 24, 0.25),
+    0 0.4vh 1.4vh -0.4vh rgba(40, 32, 22, 0.45);
   z-index: 2;
   pointer-events: none;
 }
@@ -460,7 +474,7 @@ html.walk .door::after {
 html.walk .door__beyond {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, #a8a195 0%, #9a9387 72%, #7f786c 72%, #8d867a 100%);
+  background: linear-gradient(to bottom, #a39e94 0%, #8f8a80 72%, #231d18 72%, #2c2520 100%);
 }
 
 html.walk .door__sign {
@@ -469,7 +483,7 @@ html.walk .door__sign {
   bottom: calc(100% + 2.6vh);
   transform: translateX(-50%);
   font: italic 400 clamp(1rem, 1.3vw, 1.4rem) / 1 var(--serif);
-  color: var(--olive);
+  color: var(--olive-deep);
   white-space: nowrap;
 }
 
@@ -511,32 +525,57 @@ html.walk .doorway__leaf {
   display: none;
 }
 
-/* ───────── Fachada (recorrido) ───────── */
+/* ───────── Fachada (recorrido) ─────────
+   La pared, el piso y las hojas de la puerta salen del render fachada.jpg
+   (1474×704 px). Medidas del hueco en esa imagen: x 615→885, y 139→537.
+   --u es el tamaño en pantalla de un píxel de la imagen: se escala por alto
+   para que el piso del render caiga justo en la línea de piso de la casa. */
+
+html.walk #fachada {
+  --u: calc(100vh / 691);
+  --img-w: calc(1474 * var(--u));
+  --img-x: calc(50vw - 737 * var(--u));
+  --img-y: calc(var(--floor-line) - 537 * var(--u));
+  --dx: calc(var(--img-x) + 615 * var(--u));
+  --dw: calc(270 * var(--u));
+  --dt: calc(var(--img-y) + 139 * var(--u));
+}
+
+/* Pantallas ultra anchas: el render se ajusta por ancho para seguir cubriendo. */
+@media (min-aspect-ratio: 2134 / 1000) {
+  html.walk #fachada {
+    --u: calc(100vw / 1474);
+  }
+}
 
 html.walk #fachada .room__wall {
-  background:
-    linear-gradient(
-      to bottom,
-      transparent calc(var(--floor-line) - 3vh),
-      #c4bdb1 calc(var(--floor-line) - 3vh),
-      #c4bdb1 var(--floor-line),
-      transparent var(--floor-line)
-    ),
-    radial-gradient(70vw 60vh at 50vw 6vh, rgba(255, 255, 255, 0.45), transparent 70%),
-    repeating-linear-gradient(to bottom, transparent 0, transparent 9.4vh, rgba(26, 26, 24, 0.05) 9.4vh, rgba(26, 26, 24, 0.05) 9.5vh),
-    var(--wall);
+  background: var(--img) no-repeat var(--img-x) var(--img-y) / var(--img-w) auto var(--wall);
+}
+
+/* El piso del render, como capa aparte para tapar el hueco por debajo de la puerta. */
+html.walk #fachada .room__floor {
+  perspective: none;
+  background: var(--img) no-repeat var(--img-x) calc(var(--img-y) - var(--floor-line)) / var(--img-w) auto var(--floor);
+}
+
+html.walk #fachada .room__floor i,
+html.walk #fachada .room__floor::after,
+html.walk #fachada .door::before {
+  content: none;
+  display: none;
 }
 
 html.walk #fachada .door {
   perspective: 120vh;
 }
 
+/* Cada hoja es un recorte del render: al girar se abre la puerta real de la imagen. */
 .leaf {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 50%;
-  background: linear-gradient(to bottom, #72755a, var(--olive) 30%, #5d6048);
+  background: var(--img) no-repeat calc(-615 * var(--u)) calc(-139 * var(--u)) / var(--img-w) auto;
   backface-visibility: hidden;
   will-change: transform;
 }
@@ -544,47 +583,19 @@ html.walk #fachada .door {
 .leaf--l {
   left: 0;
   transform-origin: 0 50%;
-  box-shadow: inset -1px 0 0 rgba(26, 26, 24, 0.35);
 }
 
 .leaf--r {
   right: 0;
   transform-origin: 100% 50%;
-}
-
-/* Cuarterones y tirador */
-.leaf::before {
-  content: "";
-  position: absolute;
-  inset: 7% 16% 9%;
-  border: 1px solid rgba(26, 26, 24, 0.28);
-  box-shadow:
-    inset 0 0 0 0.45vw var(--olive),
-    inset 0 0 0 calc(0.45vw + 1px) rgba(255, 255, 255, 0.14);
-}
-
-.leaf::after {
-  content: "";
-  position: absolute;
-  top: 44%;
-  width: 0.34vw;
-  height: 13%;
-  background: linear-gradient(90deg, #cdb87e, var(--brass));
-  box-shadow: 0.2vw 0.2vw 0.4vw rgba(26, 26, 24, 0.35);
-}
-
-.leaf--l::after {
-  right: 0.7vw;
-}
-
-.leaf--r::after {
-  left: 0.7vw;
+  background-position-x: calc(-750 * var(--u));
 }
 
 html.walk .wordmark {
   position: absolute;
   inset: 0;
-  font-size: min(10.4vw, 21vh);
+  /* Cabe en el tramo de pared a cada lado de la puerta. */
+  font-size: min(21vh, calc((50vw - var(--dw) / 2 - var(--pad) - 2.6vw) / 3));
   line-height: 1;
   pointer-events: none;
 }
@@ -597,11 +608,11 @@ html.walk .wordmark span {
 }
 
 html.walk .wordmark__a {
-  right: 61.6vw;
+  right: calc(100vw - var(--dx) + 2.6vw);
 }
 
 html.walk .wordmark__b {
-  left: 61.6vw;
+  left: calc(var(--dx) + var(--dw) + 2.6vw);
 }
 
 html.walk .hero__copy {
@@ -612,29 +623,57 @@ html.walk .hero__copy {
   display: block;
 }
 
+html.walk .hero__copy .body {
+  color: rgba(26, 26, 24, 0.86);
+}
+
 html.walk .hero__cta {
   position: absolute;
-  left: 61.6vw;
+  left: calc(var(--dx) + var(--dw) + 2.6vw);
   top: 62vh;
 }
 
-/* ───────── Recibidor (recorrido) ───────── */
+/* ───────── Recibidor (recorrido) ─────────
+   A la izquierda, la vista abierta al departamento completo; a la derecha,
+   el tramo de muro con la puerta que lleva a la sala. */
 
-html.walk .about__photo {
-  left: 7vw;
-  top: 15vh;
-  width: 21vw;
-  height: 52vh;
+html.walk .about__view {
+  left: 0;
+  top: 0;
+  width: 74vw;
+  height: 100vh;
+  border: 0;
+  border-right: var(--jamb) solid var(--olive);
+  box-shadow: 1.2vw 0 2.4vw -0.8vw rgba(20, 16, 12, 0.55);
+}
+
+html.walk .about__view::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to top, rgba(20, 16, 12, 0.72), transparent 34%),
+    linear-gradient(to bottom, rgba(247, 245, 242, 0.5), transparent 16%);
 }
 
 html.walk .about__text {
   position: absolute;
-  left: 34vw;
-  width: 36vw;
-  top: calc(var(--header-h) + 2vh);
-  bottom: calc(var(--floor-h) + 4vh);
-  align-content: center;
-  gap: 2.4vh;
+  left: 7vw;
+  top: 47vh;
+  translate: 0 -50%;
+  width: 33vw;
+  padding: 5vh 3vw;
+  gap: 2.2vh;
+  background: rgba(247, 245, 242, 0.95);
+  box-shadow: 0 3vh 4vh -2vh rgba(20, 16, 12, 0.5);
+}
+
+html.walk .about__text .title {
+  font-size: min(3.6vw, 6.6vh);
+}
+
+html.walk .about__text .room-name {
+  color: var(--olive);
 }
 
 html.walk .about__sign {
@@ -835,4 +874,48 @@ html.walk .house-footer {
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+/* ───────── Avisos de scroll (recorrido) ───────── */
+
+.hero__hint {
+  align-items: flex-start;
+  justify-self: start;
+}
+
+html.walk .hero__hint {
+  display: none;
+}
+
+/* Sobre el piso, justo delante de cada puerta. */
+html.walk .door__hint {
+  position: absolute;
+  top: calc(100% + 2.4vh);
+  left: 50%;
+  translate: -50% 0;
+  gap: 1vh;
+}
+
+html.walk .door__hint i {
+  height: 4.2vh;
+}
+
+html.walk .sala__hint {
+  display: inline-flex;
+  margin-top: 1vh;
+}
+
+/* ───────── Texto sobre el piso oscuro (recorrido) ───────── */
+
+html.walk .door__hint,
+html.walk .house-footer {
+  color: var(--on-floor);
+}
+
+html.walk .scroll-hint i {
+  background: color-mix(in srgb, currentColor 28%, transparent);
+}
+
+html.walk .scroll-hint i::after {
+  background: currentColor;
 }

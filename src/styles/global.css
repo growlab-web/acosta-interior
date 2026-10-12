@@ -344,3 +344,84 @@ html:not(.js) .doorway__leaf {
     display: none;
   }
 }
+
+/* ───────── Aviso de scroll ─────────
+   Mismo componente en toda la casa: texto corto y una línea por la que
+   "cae" un trazo, indicando hacia dónde seguir. */
+
+.scroll-hint {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  font: 400 0.68rem/1 var(--sans);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.scroll-hint i {
+  position: relative;
+  overflow: hidden;
+  width: 1px;
+  height: 2.6rem;
+  background: rgba(26, 26, 24, 0.22);
+}
+
+.scroll-hint i::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+  transform: translateY(-101%);
+  animation: hint-run 2s var(--ease) infinite;
+}
+
+/* Variante lateral: para tramos que se recorren de lado. */
+.scroll-hint--side {
+  flex-direction: row;
+  gap: 1rem;
+}
+
+.scroll-hint--side i {
+  width: 3.4rem;
+  height: 1px;
+}
+
+.scroll-hint--side i::after {
+  transform: translateX(-101%);
+  animation-name: hint-run-side;
+}
+
+@keyframes hint-run {
+  0% {
+    transform: translateY(-101%);
+  }
+  70%,
+  100% {
+    transform: translateY(101%);
+  }
+}
+
+@keyframes hint-run-side {
+  0% {
+    transform: translateX(-101%);
+  }
+  70%,
+  100% {
+    transform: translateX(101%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-hint i::after {
+    animation: none;
+    transform: none;
+  }
+}
+
+/* Foto que ya es una puerta (el render de la fachada): sin hojas encima. */
+.doorway--plain .doorway__leaf {
+  display: none;
+}

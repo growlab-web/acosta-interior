@@ -9,17 +9,28 @@ interface Props {
   hang?: boolean;
   class?: string;
   eager?: boolean;
+  /** Para fotos grandes: anchos generados y atributo sizes. */
+  widths?: number[];
+  sizes?: string;
 }
 
-const { name, alt, hang = false, class: cls, eager = false } = Astro.props;
+const {
+  name,
+  alt,
+  hang = false,
+  class: cls,
+  eager = false,
+  widths = [480, 800, 1200],
+  sizes = "(min-width: 1024px) 24vw, 90vw",
+} = Astro.props;
 ---
 
 <figure class:list={["doorway", hang && "doorway--hang", cls]} data-doorway>
   <Image
     src={photo(name)}
     alt={alt}
-    widths={[480, 800, 1200]}
-    sizes="(min-width: 1024px) 24vw, 90vw"
+    widths={widths}
+    sizes={sizes}
     loading={eager ? "eager" : "lazy"}
   />
   <span class="doorway__leaf doorway__leaf--l" aria-hidden="true"></span>

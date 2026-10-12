@@ -60,9 +60,14 @@ interface Door {
 }
 
 function doorOf(room: HTMLElement): Door | null {
-  const raw = room.dataset.door;
-  if (!raw) return null;
-  const [x, w, top] = raw.split(",").map(Number);
+  // Se mide el hueco real (offset*, sin transformaciones): la puerta de la fachada
+  // depende de la proporción de la pantalla porque sale del render de fondo.
+  const el = room.querySelector<HTMLElement>(".door");
+  if (!el) return null;
+  const w = el.offsetWidth / window.innerWidth;
+  const top = el.offsetTop / window.innerHeight;
+  // En la sala la puerta está al final de la pared y acaba centrada tras recorrerla.
+  const x = room.classList.contains("room--wide") ? 0.5 - w / 2 : el.offsetLeft / window.innerWidth;
   const L = x;
   const R = x + w;
   const ox = x + w / 2;
@@ -166,6 +171,8 @@ function buildWalk() {
 
   gsap.set(rooms, { autoAlpha: 0, zIndex: (i) => rooms.length - i });
   gsap.set(rooms.slice(0, 2), { autoAlpha: 1 });
+  // Tras la puerta de entrada se ve desde el inicio el interior real, no el relleno.
+  gsap.set(parts[0].beyond, { autoAlpha: 0 });
 
   const tl = gsap.timeline({ defaults: { ease: "none" }, paused: true });
   /** Momento desde el que cada habitación cuenta como "la actual". */
@@ -188,7 +195,7 @@ function buildWalk() {
 
     // En la fachada se empieza a caminar mientras la puerta termina de abrirse.
     tl.addLabel(walk, part.id === "fachada" ? "-=0.3" : ">")
-      .to(part.content, { autoAlpha: 0, duration: 0.4 }, walk)
+      .to([part.content, part.room.querySelector(".door__hint")], { autoAlpha: 0, duration: 0.4 }, walk)
       .fromTo(part.out, { scale: 1 }, { scale: S, duration: 1, ease: approach(1, S) }, walk)
       .fromTo(next.inn, { scale: s0 }, { scale: 1, duration: 1, ease: far }, walk)
       .to(next.shade, { opacity: 0, duration: 0.7 }, walk)
@@ -321,10 +328,33 @@ function intro(reduced: boolean) {
 
 /* ───────── Arranque ───────── */
 
-const mm = gsap.matchMedia();
-mm.add({ walk: WALK, reduced: REDUCED, any: "all" }, (ctx) => {
-  const { walk, reduced } = ctx.conditions as { walk: boolean; reduced: boolean };
-  return walk ? buildWalk() : buildStacked(reduced);
+function start() {
+  const media = gsap.matchMedia();
+  media.add({ walk: WALK, reduced: REDUCED, any: "all" }, (ctx) => {
+    const { walk, reduced } = ctx.conditions as { walk: boolean; reduced: boolean };
+    return walk ? buildWalk() : buildStacked(reduced);
+  });
+  return media;
+}
+
+let mm = start();
+
+// La geometría de las puertas depende del tamaño de pantalla: al redimensionar
+// dentro del recorrido se reconstruye y se vuelve a la habitación en la que se estaba.
+let size = `${window.innerWidth}x${window.innerHeight}`;
+let resizeTimer = 0;
+window.addEventListener("resize", () => {
+  window.clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(() => {
+    const now = `${window.innerWidth}x${window.innerHeight}`;
+    if (now === size) return;
+    size = now;
+    if (!root.classList.contains("walk")) return;
+    const id = rooms[Math.max(active, 0)].id;
+    mm.revert();
+    mm = start();
+    goTo(id, true);
+  }, 250);
 });
 
 document.addEventListener("click", (event) => {

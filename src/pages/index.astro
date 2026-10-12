@@ -1,11 +1,15 @@
 ---
-import { Image } from "astro:assets";
+import { getImage, Image } from "astro:assets";
 import Base from "../layouts/Base.astro";
 import Room from "../components/Room.astro";
 import Doorway from "../components/Doorway.astro";
 import FloorPlan from "../components/FloorPlan.astro";
 import { photo, projects, services, studio, testimonials } from "../data/site";
 import "../styles/house.css";
+
+// Render de la fachada: es la pared de la portada y de él se recortan las hojas de la puerta.
+// Si se cambia la imagen hay que actualizar las medidas en house.css (bloque "Fachada").
+const facade = await getImage({ src: photo("fachada"), format: "webp", quality: 90 });
 
 // Colgado tipo salón: alturas y formatos alternados para que la pared tenga ritmo.
 const hang = [
@@ -20,7 +24,7 @@ const hang = [
 <Base home>
   <main id="house">
     <!-- 1 · Fachada -->
-    <Room id="fachada" label="Inicio" wall="#d9d3c9" floor="#b7afa2" door={{ x: 0.41, w: 0.18, top: 0.2 }}>
+    <Room id="fachada" label="Inicio" wall="#bdb7ac" floor="#2f2822" door={{}} image={facade.src} hint="Desliza para entrar">
       <Fragment slot="door">
         <span class="leaf leaf--l"></span>
         <span class="leaf leaf--r"></span>
@@ -39,25 +43,31 @@ const hang = [
       <div class="hero__cta" data-hero>
         <a class="btn" href="#proyectos">Ver proyectos</a>
       </div>
-      <Doorway name="room-fachada" alt="Sala luminosa diseñada por Acosta Interior" eager />
+      <p class="hero__hint scroll-hint" aria-hidden="true" data-hero>Desliza para recorrer la casa<i></i></p>
+      <Doorway name="fachada" alt="Puerta de entrada verde olivo con tiradores de latón" class="doorway--plain" eager />
     </Room>
 
     <!-- 2 · Recibidor: el estudio -->
     <Room
       id="estudio"
       label="El estudio"
-      wall="#f1eee8"
-      floor="#c9bfb0"
-      door={{ x: 0.765, w: 0.15, top: 0.24 }}
+      wall="#c6c1b7"
+      floor="#322a24"
+      door={{ x: 0.79, w: 0.15, top: 0.24 }}
       sign="Sala"
+      hint="Desliza para pasar"
     >
+      <!-- Al cruzar la puerta de entrada se abre la vista del departamento completo. -->
       <Doorway
-        name="room-recibidor"
-        alt="Sala con lámparas de fibra natural y paleta cálida"
+        name="room-departamento"
+        alt="Departamento de planta abierta: sala con sofá de cuero, cocina al fondo y muro verde"
         hang
-        class="about__photo"
+        class="about__view"
+        widths={[800, 1200, 1800, 2400]}
+        sizes="(min-width: 1024px) 74vw, 90vw"
+        eager
       />
-      <div class="about__text stack">
+      <div class="about__text stack" data-reveal>
         <p class="room-name" data-reveal>Recibidor</p>
         <h2 class="title" data-reveal>Espacios que reflejan <em>quién eres</em></h2>
         <p class="body" data-reveal>
@@ -69,13 +79,16 @@ const hang = [
     </Room>
 
     <!-- 3 · Sala: proyectos -->
-    <Room id="proyectos" label="Proyectos" wall="#ebe7e0" floor="#bfb5a6" door={{ w: 0.16, top: 0.22 }} wide sign="Cocina">
+    <Room id="proyectos" label="Proyectos" wall="#cbc6bc" floor="#322a24" door={{ w: 0.16, top: 0.22 }} wide sign="Cocina" hint="Desliza para pasar">
       <div class="sala__intro stack">
         <p class="room-name" data-reveal>Sala</p>
         <h2 class="title" data-reveal>Proyectos colgados en la pared</h2>
         <p class="body" data-reveal>
           Cinco espacios recientes, residenciales y comerciales. Sigue caminando a lo largo de la sala y entra al que
           quieras ver completo.
+        </p>
+        <p class="sala__hint scroll-hint scroll-hint--side decor" aria-hidden="true" data-reveal>
+          Desliza para recorrer la sala<i></i>
         </p>
       </div>
       <ul class="gallery">
@@ -115,10 +128,11 @@ const hang = [
     <Room
       id="servicios"
       label="Servicios"
-      wall="#d8dac8"
-      floor="#b9b3a0"
+      wall="#bcbdaa"
+      floor="#2f2822"
       door={{ x: 0.085, w: 0.15, top: 0.24 }}
       sign="Comedor"
+      hint="Desliza para pasar"
     >
       <Doorway
         name="room-cocina"
@@ -146,10 +160,11 @@ const hang = [
     <Room
       id="testimonios"
       label="Testimonios"
-      wall="#efeae2"
-      floor="#c4b9a8"
+      wall="#c9c4b9"
+      floor="#322a24"
       door={{ x: 0.775, w: 0.15, top: 0.24 }}
       sign="Estudio"
+      hint="Desliza para pasar"
     >
       <div class="lamps decor" aria-hidden="true">
         <i style="--drop:9vh"></i>
@@ -179,7 +194,7 @@ const hang = [
     </Room>
 
     <!-- 6 · Estudio: contacto -->
-    <Room id="contacto" label="Contacto" wall="#e6e2dc" floor="#bdb3a4">
+    <Room id="contacto" label="Contacto" wall="#c3beb4" floor="#2f2822">
       <Doorway name="room-estudio" alt="Sala con sofá azul y piso de madera en espiga" />
       <div class="contact">
         <div class="contact__intro stack">
