@@ -8,10 +8,18 @@ import "../styles/house.css";
 // Render de la fachada: es la pared de la portada y de él se recortan las hojas de la puerta.
 // Si se cambia la imagen hay que actualizar las medidas en house.css (bloque "Fachada").
 const facade = await getImage({ src: photo("fachada"), format: "webp", quality: 90 });
+
+// Fotos de portada de cada proyecto: son los cuadros de la galería en el departamento 3D.
+const frames = await Promise.all(
+  projects.map((p) => getImage({ src: photo(p.images[0]), width: 1400, format: "webp", quality: 82 })),
+);
 ---
 
 <Base home>
   <main id="house">
+    <!-- El departamento en 3D: va detrás de todas las escenas (solo en el recorrido de escritorio). -->
+    <canvas class="stage" id="stage" aria-hidden="true" data-photos={JSON.stringify(frames.map((f) => f.src))}></canvas>
+
     <!-- 1 · Fachada -->
     <Room
       id="fachada"

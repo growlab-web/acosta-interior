@@ -2,6 +2,7 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ScrollToPlugin } from "gsap/ScrollToPlugin";
 import { SplitText } from "gsap/SplitText";
+import type { Apartment, View } from "./apartment";
 
 gsap.registerPlugin(ScrollTrigger, ScrollToPlugin, SplitText);
 
@@ -49,10 +50,6 @@ interface Door {
   oy: number;
   /** Escala con la que el hueco cubre toda la pantalla. */
   S: number;
-  /** Escala inicial de la escena siguiente, vista a través del hueco. */
-  s0: number;
-  /** Exponente de paralaje: el fondo crece como (escala de la pared)^lag, siempre cubriendo el hueco. */
-  lag: number;
 }
 
 function doorOf(room: HTMLElement): Door | null {
@@ -67,10 +64,7 @@ function doorOf(room: HTMLElement): Door | null {
   const ox = L + w / 2;
   const oy = (top + FLOOR) / 2;
   const S = Math.max(ox / (ox - L), (1 - ox) / (R - ox), oy / (oy - top), (1 - oy) / (FLOOR - oy)) * 1.03;
-  // Lado del hueco que más tarda en salir de pantalla: fija cuánto puede "retrasarse" el fondo.
-  const tight = Math.max((ox - L) / ox, (R - ox) / (1 - ox), (oy - top) / oy, (FLOOR - oy) / (1 - oy));
-  const s0 = Math.min(0.86, tight + 0.2);
-  return { ox, oy, S, s0, lag: Math.log(s0) / Math.log(tight) };
+  return { ox, oy, S };
 }
 
 /**
@@ -78,15 +72,6 @@ function doorOf(room: HTMLElement): Door | null {
  * no de forma lineal. Devuelve el progreso normalizado para ir de la escala `a` a la `b`.
  */
 const approach = (a: number, b: number) => (p: number) => (a / (1 - p * (1 - a / b)) - a) / (b - a);
-
-/**
- * La escena del fondo está más lejos, así que crece más despacio que la pared que cruzamos
- * (paralaje), pero nunca tan despacio como para dejar ver el vacío por el hueco de la puerta.
- */
-const beyondEase = ({ S, s0, lag }: Door) => {
-  const wall = approach(1, S);
-  return (p: number) => (Math.min(1, s0 * (1 + wall(p) * (S - 1)) ** lag) - s0) / (1 - s0);
-};
 
 /* ───────── Texto ───────── */
 
@@ -99,6 +84,53 @@ function splitChars(scope: HTMLElement) {
 
 const BLUR_FROM = { autoAlpha: 0, filter: "blur(14px)", yPercent: 22 };
 const BLUR_TO = { autoAlpha: 1, filter: "blur(0px)", yPercent: 0 };
+
+/* ───────── Cámara del departamento 3D ───────── */
+
+/** Centro en x de cada cuadro de la galería (igual que FRAME_X en apartment.ts). */
+const FRAME_X = [0, 4.4, 8.8, 13.2, 17.6];
+
+const v = (px: number, py: number, pz: number, tx: number, ty: number, tz: number): View => ({ px, py, pz, tx, ty, tz });
+
+/**
+ * Dos vistas por escena: a la que se llega y a la que deriva mientras se está en ella,
+ * para que la cámara nunca quede quieta. Posición (p) y punto al que mira (t), en metros.
+ */
+function cameraStops(): [View, View][] {
+  let project = 0;
+  return rooms.map((room) => {
+    switch (room.dataset.nav) {
+      case "fachada": {
+        const out = v(0, 1.45, 2.7, 0, 1.38, -12);
+        return [out, out];
+      }
+      case "estudio":
+        return [v(0, 1.5, -0.6, 0, 1.4, -12), v(0, 1.5, -2.0, 0, 1.4, -12)];
+      case "proyectos": {
+        const x = FRAME_X[project++ % FRAME_X.length];
+        // De frente al cuadro, lo bastante lejos para ver piso, banco y lámparas en primer plano.
+        return [v(x - 0.7, 1.5, -6.3, x - 0.3, 1.5, -12), v(x + 0.7, 1.5, -6.3, x + 0.3, 1.5, -12)];
+      }
+      case "servicios":
+        return [v(21.8, 1.5, -9.4, 29.5, 1.1, -9.1), v(22.9, 1.5, -9.2, 29.5, 1.1, -9.1)];
+      case "testimonios":
+        return [v(24.1, 1.55, -11.0, 24.5, 0.95, -5), v(24.9, 1.5, -10.3, 24.5, 0.95, -5)];
+      default: {
+        const end = v(24.5, 1.35, -9.2, 24.5, 1.45, -4.5);
+        return [end, end];
+      }
+    }
+  });
+}
+
+// Three.js solo se descarga si se entra al recorrido, y la escena se crea una vez.
+let apartment: Promise<Apartment> | null = null;
+function loadApartment(canvas: HTMLCanvasElement) {
+  apartment ??= import("./apartment").then(({ createApartment }) =>
+    createApartment(canvas, JSON.parse(canvas.dataset.photos ?? "[]")),
+  );
+  return apartment;
+}
 
 /* ───────── Recorrido de escritorio ───────── */
 
@@ -160,8 +192,42 @@ function buildWalk() {
   }));
 
   gsap.set(rooms, { autoAlpha: 0, zIndex: (i) => rooms.length - i });
-  // Tras la puerta de entrada se ve desde el inicio el interior real.
-  gsap.set(rooms.slice(0, 2), { autoAlpha: 1 });
+  gsap.set(rooms[0], { autoAlpha: 1 });
+
+  // Cámara: la línea de tiempo mueve `view` y el puntero añade un leve paralaje.
+  const stops = cameraStops();
+  const view: View = { ...stops[0][0] };
+  const pointer = { x: 0, y: 0 };
+  const canvas = document.querySelector<HTMLCanvasElement>("#stage")!;
+  let apt: Apartment | null = null;
+  let alive = true;
+  // El scroll y el puntero pueden pedir dibujar varias veces en el mismo cuadro:
+  // se marca como pendiente y se dibuja una sola vez por tick.
+  let dirty = false;
+  const draw = () => (dirty = true);
+  const paint = () => {
+    if (!dirty || !apt) return;
+    dirty = false;
+    apt.render(view, pointer.x, pointer.y);
+  };
+  gsap.ticker.add(paint);
+  loadApartment(canvas)
+    .then((ready) => {
+      if (!alive) return;
+      apt = ready;
+      apt.resize();
+      draw();
+      canvas.classList.add("is-ready");
+    })
+    .catch(() => root.classList.add("no3d"));
+
+  const moveX = gsap.quickTo(pointer, "x", { duration: 0.9, ease: "power3", onUpdate: draw });
+  const moveY = gsap.quickTo(pointer, "y", { duration: 0.9, ease: "power3", onUpdate: draw });
+  const onPointer = (event: PointerEvent) => {
+    moveX((event.clientX / window.innerWidth - 0.5) * 0.3);
+    moveY((0.5 - event.clientY / window.innerHeight) * 0.12);
+  };
+  window.addEventListener("pointermove", onPointer);
 
   const tl = gsap.timeline({ defaults: { ease: "none" }, paused: true });
   /** Momento desde el que cada escena cuenta como "la actual". */
@@ -174,7 +240,7 @@ function buildWalk() {
     const from = tl.duration();
     dwell[part.room.id]?.(tl, part);
     if (tl.duration() - from < 0.4) tl.to({}, { duration: 0.4 - (tl.duration() - from) });
-    if (part.bg && !part.door) tl.to(part.bg, { scale: 1.08, duration: tl.duration() - from }, from);
+    if (stops[i][0] !== stops[i][1]) tl.to(view, { ...stops[i][1], duration: tl.duration() - from }, from);
 
     const next = parts[i + 1];
     if (!next) return;
@@ -184,27 +250,24 @@ function buildWalk() {
     let revealAt: string;
 
     if (part.door) {
-      // Fachada: se cruza el hueco de la puerta; la pared crece y la escena del fondo se acerca.
-      const { ox, oy, S, s0 } = part.door;
-      const origin = `${ox * 100}% ${oy * 100}%`;
-      gsap.set(part.out, { transformOrigin: origin });
-      gsap.set(next.inn, { transformOrigin: origin });
+      // Fachada: la pared crece hasta que el hueco de la puerta llena la pantalla, mientras
+      // la cámara 3D avanza por el pasillo que se ve a través de él.
+      const { ox, oy, S } = part.door;
+      gsap.set(part.out, { transformOrigin: `${ox * 100}% ${oy * 100}%` });
       tl.addLabel(walk, "-=0.3")
         .to(leaving, { autoAlpha: 0, duration: 0.4 }, walk)
         .fromTo(part.out, { scale: 1 }, { scale: S, duration: 1, ease: approach(1, S) }, walk)
-        .fromTo(next.inn, { scale: s0 }, { scale: 1, duration: 1, ease: beyondEase(part.door) }, walk)
-        .set(part.room, { autoAlpha: 0 }, `${walk}+=1`);
-      revealAt = `${walk}+=0.6`;
+        .to(view, { ...stops[i + 1][0], duration: 1, ease: "sine.in" }, walk)
+        .set(part.room, { autoAlpha: 0 }, `${walk}+=1`)
+        .fromTo(next.room, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, `${walk}+=0.6`);
+      revealAt = `${walk}+=0.65`;
     } else {
-      // Zoom continuo: la foto actual se acerca a su punto de interés y se funde con la
-      // siguiente, que llega todavía ampliada y termina de asentarse.
+      // Entre escenas la cámara camina por el departamento; el texto se va y vuelve al llegar.
       tl.addLabel(walk)
-        .to(leaving, { autoAlpha: 0, duration: 0.3 }, walk)
-        .set(next.room, { autoAlpha: 1 }, walk)
-        .to(part.room, { autoAlpha: 0, duration: 0.5, ease: "power1.in" }, `${walk}+=0.45`);
-      if (part.bg) tl.to(part.bg, { scale: 2.2, duration: 0.95, ease: "power2.in" }, walk);
-      if (next.bg) tl.fromTo(next.bg, { scale: 1.32 }, { scale: 1, duration: 0.95, ease: "power2.out" }, `${walk}+=0.4`);
-      revealAt = `${walk}+=0.8`;
+        .to(part.room, { autoAlpha: 0, duration: 0.3 }, walk)
+        .to(view, { ...stops[i + 1][0], duration: 1, ease: "power2.inOut" }, walk)
+        .fromTo(next.room, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.35 }, `${walk}+=0.65`);
+      revealAt = `${walk}+=0.75`;
     }
 
     // Entrada del contenido: titulares letra a letra saliendo del desenfoque, luego el resto.
@@ -253,7 +316,10 @@ function buildWalk() {
     invalidateOnRefresh: true,
   });
   // Con scrub la línea de tiempo va por detrás del scroll: se sincroniza con ella, no con el scroll.
-  tl.eventCallback("onUpdate", sync);
+  tl.eventCallback("onUpdate", () => {
+    sync();
+    draw();
+  });
 
   goTo = (id, instant) => {
     const at = tl.labels[id];
@@ -265,6 +331,7 @@ function buildWalk() {
       st.getTween()?.progress(1);
       tl.progress(at / tl.duration());
       sync();
+      draw();
     };
     if (instant) return jump();
     // Corte a negro: atravesar varias escenas a toda velocidad marea.
@@ -278,6 +345,9 @@ function buildWalk() {
   sync();
 
   return () => {
+    alive = false;
+    gsap.ticker.remove(paint);
+    window.removeEventListener("pointermove", onPointer);
     root.classList.remove("walk");
     rooms.forEach((room) => (room.inert = false));
     active = -1;

@@ -335,8 +335,49 @@ html.walk .room {
   visibility: hidden;
 }
 
-html.walk .room:first-child {
+html.walk #fachada {
   visibility: visible;
+}
+
+/* El departamento 3D ocupa todo el escenario, por detrás de las escenas. */
+.stage {
+  display: none;
+}
+
+html.walk .stage {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 1.2s var(--ease);
+}
+
+html.walk .stage.is-ready {
+  opacity: 1;
+}
+
+/* Con el 3D activo las fotos de fondo sobran; vuelven si WebGL no está disponible. */
+html.walk .room__bg {
+  display: none;
+}
+
+html.walk.no3d .room:not(#fachada) .room__bg {
+  display: block;
+}
+
+/* Velo sobre el 3D para que el texto se lea: más denso abajo, donde van los títulos. */
+html.walk:not(.no3d) .room:not(#fachada):not(.room--contact) .room__out::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(14, 12, 10, 0.8), rgba(14, 12, 10, 0.08) 48%, rgba(14, 12, 10, 0.5));
+  pointer-events: none;
+}
+
+html.walk:not(.no3d) .room--kitchen .room__out::before {
+  background: linear-gradient(to top, rgba(14, 12, 10, 0.86), rgba(14, 12, 10, 0.5) 60%, rgba(14, 12, 10, 0.62));
 }
 
 html.walk .room__in,
@@ -412,7 +453,6 @@ html.walk #fachada {
   }
 }
 
-html.walk #fachada .room__bg,
 html.walk .hero__hint {
   display: none;
 }
