@@ -205,16 +205,37 @@ function buildWalk() {
   // se marca como pendiente y se dibuja una sola vez por tick.
   let dirty = false;
   const draw = () => (dirty = true);
+  // Calidad adaptativa: si los cuadros seguidos tardan demasiado, se apaga el posproceso.
+  // Se puede forzar con ?q=alta o ?q=baja en la URL.
+  const forced = new URLSearchParams(location.search).get("q");
+  let adaptive = !forced;
+  let painted = false;
+  let lastPaint = 0;
+  let slow = 0;
   const paint = () => {
-    if (!dirty || !apt) return;
+    if (!dirty || !apt) return (painted = false);
     dirty = false;
     apt.render(view, pointer.x, pointer.y);
+    // Se mide con el reloj real (el delta de GSAP viene recortado cuando hay retraso), y solo
+    // cuenta como cuadro de 3D si en el tick anterior también se dibujó.
+    const now = performance.now();
+    const delta = now - lastPaint;
+    lastPaint = now;
+    if (adaptive && painted) {
+      slow = delta > 42 ? slow + (delta > 200 ? 4 : 1) : Math.max(0, slow - 1);
+      if (slow >= 10) {
+        adaptive = false;
+        apt.setQuality(false);
+      }
+    }
+    painted = true;
   };
   gsap.ticker.add(paint);
   loadApartment(canvas)
     .then((ready) => {
       if (!alive) return;
       apt = ready;
+      if (forced) apt.setQuality(forced !== "baja");
       apt.resize();
       draw();
       canvas.classList.add("is-ready");
