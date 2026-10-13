@@ -195,7 +195,9 @@ ul {
   transform: scaleX(0);
 }
 
-/* ───────── Cabecera ───────── */
+/* ───────── Cabecera ─────────
+   Solo logo y contacto: la navegación vive en el menú flotante (Dock).
+   El color sigue a la escena activa (html[data-tone]). */
 
 .site-header {
   position: fixed;
@@ -207,15 +209,18 @@ ul {
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
+  color: var(--ink);
+  transition: color 0.5s var(--ease);
+}
+
+html[data-tone="light"] .site-header {
+  color: var(--paper);
+}
+
+.site-header--solid {
   background: rgba(247, 245, 242, 0.86);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-}
-
-html.walk .site-header {
-  background: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
 
 .logo {
@@ -235,53 +240,33 @@ html.walk .site-header {
   font-size: 0.56rem;
   letter-spacing: 0.62em;
   text-transform: uppercase;
-  color: var(--text);
+  opacity: 0.72;
 }
 
-.nav {
-  display: flex;
-  align-items: center;
-  gap: clamp(1rem, 2.4vw, 2.4rem);
+.site-header__cta {
+  position: relative;
+  padding-block: 0.6em;
   font-size: 0.72rem;
   font-weight: 400;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
 }
 
-.nav a {
-  position: relative;
-  padding-block: 0.6em;
-  color: var(--text);
-  transition: color 0.3s;
-}
-
-.nav a::after {
+.site-header__cta::after {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0.2em;
   height: 1px;
-  background: var(--olive);
-  transform: scaleX(0);
+  background: currentColor;
   transform-origin: left;
   transition: transform 0.45s var(--ease);
 }
 
-.nav a:hover,
-.nav a[aria-current="true"] {
-  color: var(--ink);
-}
-
-.nav a:hover::after,
-.nav a[aria-current="true"]::after {
-  transform: scaleX(1);
-}
-
-@media (max-width: 719px) {
-  .nav .nav__extra {
-    display: none;
-  }
+.site-header__cta:hover::after {
+  transform-origin: right;
+  transform: scaleX(0);
 }
 
 /* ───────── Cortina para saltos de navegación ───────── */
@@ -294,55 +279,6 @@ html.walk .site-header {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-}
-
-/* ───────── Marco / umbral con foto ───────── */
-
-.doorway {
-  position: relative;
-  overflow: hidden;
-  width: 100%;
-  max-width: 30rem;
-  aspect-ratio: 4 / 5;
-  max-height: 70vh;
-  border: 6px solid var(--trim);
-  background: var(--linen);
-  box-shadow: 0 1.6rem 2rem -1.2rem rgba(60, 50, 35, 0.4);
-}
-
-.doorway img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.doorway__leaf {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 50.5%;
-  background: var(--olive);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
-}
-
-.doorway__leaf--l {
-  left: 0;
-  transform-origin: left;
-}
-
-.doorway__leaf--r {
-  right: 0;
-  transform-origin: right;
-}
-
-html:not(.js) .doorway__leaf {
-  display: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .doorway__leaf {
-    display: none;
-  }
 }
 
 /* ───────── Aviso de scroll ─────────
@@ -421,7 +357,52 @@ html:not(.js) .doorway__leaf {
   }
 }
 
-/* Foto que ya es una puerta (el render de la fachada): sin hojas encima. */
-.doorway--plain .doorway__leaf {
-  display: none;
+
+/* ───────── Titulares y cifras grandes ───────── */
+
+.display {
+  font-family: var(--sans);
+  font-weight: 300;
+  font-size: clamp(2.9rem, 13vw, 6rem);
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+}
+
+.figure {
+  font-family: var(--sans);
+  font-weight: 300;
+  font-size: clamp(3.4rem, 17vw, 8rem);
+  line-height: 0.85;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+}
+
+.caps {
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* Botón claro, para ir sobre foto. */
+.btn--light {
+  border-color: var(--paper);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.btn--light:hover {
+  background: var(--sage);
+  border-color: var(--sage);
+}
+
+/* En las escenas apiladas el contenido pasa por debajo de la cabecera:
+   un velo suave mantiene legible el logo. */
+html:not(.walk) .site-header:not(.site-header--solid)::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 -60% 0;
+  z-index: -1;
+  background: linear-gradient(to bottom, rgba(18, 15, 12, 0.72), transparent);
+  pointer-events: none;
 }

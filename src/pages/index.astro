@@ -2,35 +2,36 @@
 import { getImage, Image } from "astro:assets";
 import Base from "../layouts/Base.astro";
 import Room from "../components/Room.astro";
-import Doorway from "../components/Doorway.astro";
-import FloorPlan from "../components/FloorPlan.astro";
 import { photo, projects, services, studio, testimonials } from "../data/site";
 import "../styles/house.css";
 
 // Render de la fachada: es la pared de la portada y de él se recortan las hojas de la puerta.
 // Si se cambia la imagen hay que actualizar las medidas en house.css (bloque "Fachada").
 const facade = await getImage({ src: photo("fachada"), format: "webp", quality: 90 });
-
-// Colgado tipo salón: alturas y formatos alternados para que la pared tenga ritmo.
-const hang = [
-  { tall: false, top: "17vh" },
-  { tall: true, top: "12vh" },
-  { tall: false, top: "22vh" },
-  { tall: true, top: "14vh" },
-  { tall: false, top: "18vh" },
-];
 ---
 
 <Base home>
   <main id="house">
     <!-- 1 · Fachada -->
-    <Room id="fachada" label="Inicio" wall="#bdb7ac" floor="#2f2822" door={{}} image={facade.src} hint="Desliza para entrar">
+    <Room
+      id="fachada"
+      nav="fachada"
+      room="Fachada"
+      label="Inicio"
+      photo="fachada"
+      scrim={0.25}
+      toneWalk="dark"
+      door
+      image={facade.src}
+      hint="Desliza para entrar"
+      eager
+    >
       <Fragment slot="door">
         <span class="leaf leaf--l"></span>
         <span class="leaf leaf--r"></span>
       </Fragment>
 
-      <h1 class="wordmark" aria-label="Acosta Interior">
+      <h1 class="wordmark display" aria-label="Acosta Interior">
         <span class="wordmark__a" aria-hidden="true">Acosta</span>
         <span class="wordmark__b" aria-hidden="true">Interior</span>
       </h1>
@@ -44,135 +45,103 @@ const hang = [
         <a class="btn" href="#proyectos">Ver proyectos</a>
       </div>
       <p class="hero__hint scroll-hint" aria-hidden="true" data-hero>Desliza para recorrer la casa<i></i></p>
-      <Doorway name="fachada" alt="Puerta de entrada verde olivo con tiradores de latón" class="doorway--plain" eager />
     </Room>
 
     <!-- 2 · Recibidor: el estudio -->
     <Room
       id="estudio"
+      nav="estudio"
+      room="Recibidor"
       label="El estudio"
-      wall="#c6c1b7"
-      floor="#322a24"
-      door={{ x: 0.79, w: 0.15, top: 0.24 }}
-      sign="Sala"
-      hint="Desliza para pasar"
+      photo="room-departamento"
+      focus="62% 58%"
+      scrim={0.34}
+      hint="Desliza"
+      eager
+      class="room--about"
     >
-      <!-- Al cruzar la puerta de entrada se abre la vista del departamento completo. -->
-      <Doorway
-        name="room-departamento"
-        alt="Departamento de planta abierta: sala con sofá de cuero, cocina al fondo y muro verde"
-        hang
-        class="about__view"
-        widths={[800, 1200, 1800, 2400]}
-        sizes="(min-width: 1024px) 74vw, 90vw"
-        eager
-      />
-      <div class="about__text stack" data-reveal>
-        <p class="room-name" data-reveal>Recibidor</p>
-        <h2 class="title" data-reveal>Espacios que reflejan <em>quién eres</em></h2>
-        <p class="body" data-reveal>
-          Soy Andrea Acosta, arquitecta y diseñadora de interiores con sede en Lima. Mi trabajo combina rigor técnico
-          con sensibilidad artística para crear espacios con propósito, materialidad y emoción.
-        </p>
-        <p class="about__sign" data-reveal>Andrea Acosta, fundadora del estudio</p>
-      </div>
+      <p class="room-name about__name" data-reveal>Recibidor</p>
+      <h2 class="display about__title">
+        <span class="about__w1" data-blur>Espacios</span>
+        <span class="about__w2" data-blur>que reflejan</span>
+        <span class="about__w3" data-blur>quién eres</span>
+      </h2>
+      <p class="body about__body" data-reveal>
+        Soy Andrea Acosta, arquitecta y diseñadora de interiores con sede en Lima. Mi trabajo combina rigor técnico con
+        sensibilidad artística para crear espacios con propósito, materialidad y emoción.
+      </p>
     </Room>
 
-    <!-- 3 · Sala: proyectos -->
-    <Room id="proyectos" label="Proyectos" wall="#cbc6bc" floor="#322a24" door={{ w: 0.16, top: 0.22 }} wide sign="Cocina" hint="Desliza para pasar">
-      <div class="sala__intro stack">
-        <p class="room-name" data-reveal>Sala</p>
-        <h2 class="title" data-reveal>Proyectos colgados en la pared</h2>
-        <p class="body" data-reveal>
-          Cinco espacios recientes, residenciales y comerciales. Sigue caminando a lo largo de la sala y entra al que
-          quieras ver completo.
-        </p>
-        <p class="sala__hint scroll-hint scroll-hint--side decor" aria-hidden="true" data-reveal>
-          Desliza para recorrer la sala<i></i>
-        </p>
+    <!-- 3 · Sala: un proyecto por escena -->
+    {
+      projects.map((p, i) => (
+        <Room
+          id={i === 0 ? "proyectos" : undefined}
+          nav="proyectos"
+          room="Sala"
+          label={`Proyecto ${i + 1} de ${projects.length}: ${p.title}`}
+          photo={p.images[0]}
+          alt={`${p.title}, ${p.place}`}
+          scrim={0.3}
+          hint="Desliza"
+          class="room--project"
+        >
+          <p class="project__meta caps" data-reveal>
+            <span class="room-name">Sala</span>
+            Proyecto {i + 1} de {projects.length}
+          </p>
+          <p class="project__year figure" aria-hidden="true" data-blur>{p.year}</p>
+          <h2 class="project__title display" data-blur>{p.title}</h2>
+          <p class="project__info caps" data-reveal>
+            {p.category}, {p.place}, {p.year}
+          </p>
+          <a class="project__link btn btn--light" href={`/proyectos/${p.slug}/`} data-reveal>Ver proyecto</a>
+        </Room>
+      ))
+    }
+
+    <!-- 4 · Cocina: servicios -->
+    <Room
+      id="servicios"
+      nav="servicios"
+      room="Cocina"
+      label="Servicios"
+      photo="room-cocina"
+      focus="50% 40%"
+      scrim={0.66}
+      hint="Desliza"
+      class="room--kitchen"
+    >
+      <div class="kitchen__head">
+        <p class="room-name" data-reveal>Cocina</p>
+        <h2 class="display" data-blur>Servicios</h2>
+        <p class="body" data-reveal>Aquí se cocina cada proyecto, del primer boceto a la entrega.</p>
       </div>
-      <ul class="gallery">
+      <ul class="services">
         {
-          projects.map((p, i) => (
-            <li
-              class:list={["frame", hang[i % hang.length].tall && "frame--tall"]}
-              style={`--hang:${hang[i % hang.length].top}`}
-              data-reveal
-            >
-              <a href={`/proyectos/${p.slug}/`}>
-                <span class="frame__mat">
-                  <span class="frame__pic">
-                    <Image
-                      src={photo(p.images[0])}
-                      alt={`${p.title}, ${p.place}`}
-                      widths={[480, 800, 1200]}
-                      sizes="(min-width: 1024px) 54vh, (min-width: 640px) 45vw, 90vw"
-                      loading={i < 2 ? "eager" : "lazy"}
-                    />
-                  </span>
-                </span>
-                <span class="frame__cap">
-                  <b>{p.title}</b>
-                  <span>
-                    {p.category}, {p.year}
-                  </span>
-                </span>
-              </a>
+          services.map((s) => (
+            <li data-reveal>
+              <h3>{s.title}</h3>
+              <p>{s.text}</p>
             </li>
           ))
         }
       </ul>
     </Room>
 
-    <!-- 4 · Cocina: servicios -->
-    <Room
-      id="servicios"
-      label="Servicios"
-      wall="#bcbdaa"
-      floor="#2f2822"
-      door={{ x: 0.085, w: 0.15, top: 0.24 }}
-      sign="Comedor"
-      hint="Desliza para pasar"
-    >
-      <Doorway
-        name="room-cocina"
-        alt="Cocina con isla de mármol y lámparas de vidrio"
-        hang
-        class="kitchen__photo"
-      />
-      <div class="kitchen__body stack">
-        <p class="room-name" data-reveal>Cocina</p>
-        <h2 class="title" data-reveal>Aquí se cocina cada proyecto</h2>
-        <ul class="services">
-          {
-            services.map((s) => (
-              <li data-reveal>
-                <h3>{s.title}</h3>
-                <p>{s.text}</p>
-              </li>
-            ))
-          }
-        </ul>
-      </div>
-    </Room>
-
     <!-- 5 · Comedor: testimonios -->
     <Room
       id="testimonios"
+      nav="testimonios"
+      room="Comedor"
       label="Testimonios"
-      wall="#c9c4b9"
-      floor="#322a24"
-      door={{ x: 0.775, w: 0.15, top: 0.24 }}
-      sign="Estudio"
-      hint="Desliza para pasar"
+      photo="room-comedor"
+      focus="50% 45%"
+      scrim={0.6}
+      hint="Desliza"
+      class="room--dining"
     >
-      <div class="lamps decor" aria-hidden="true">
-        <i style="--drop:9vh"></i>
-        <i style="--drop:6vh"></i>
-        <i style="--drop:11vh"></i>
-      </div>
-      <Doorway name="room-comedor" alt="Comedor con sillas verdes y espejo redondo" />
-      <div class="dining__body stack">
+      <div class="dining__body">
         <p class="room-name" data-reveal>Comedor</p>
         <h2 class="sr-only">Lo que dicen los clientes</h2>
         <div class="quotes" data-reveal>
@@ -194,12 +163,11 @@ const hang = [
     </Room>
 
     <!-- 6 · Estudio: contacto -->
-    <Room id="contacto" label="Contacto" wall="#c3beb4" floor="#2f2822">
-      <Doorway name="room-estudio" alt="Sala con sofá azul y piso de madera en espiga" />
+    <Room id="contacto" nav="contacto" room="Estudio" label="Contacto" class="room--contact">
       <div class="contact">
-        <div class="contact__intro stack">
+        <div class="contact__intro">
           <p class="room-name" data-reveal>Estudio</p>
-          <h2 class="title" data-reveal>¿Comenzamos?</h2>
+          <h2 class="display contact__title" data-blur>¿Comenzamos?</h2>
           <p class="body" data-reveal>
             Cuéntame sobre tu espacio: qué es hoy y cómo quieres vivirlo. Te respondo en un par de días con los
             siguientes pasos.
@@ -224,10 +192,20 @@ const hang = [
             <textarea id="f-msg" name="message" rows="3" required></textarea>
           </div>
           <div class="form__row">
-            <button class="btn" type="submit">Enviar consulta</button>
+            <button class="btn btn--light" type="submit">Enviar consulta</button>
             <p class="form__status" role="status" data-form-status></p>
           </div>
         </form>
+
+        <figure class="contact__photo" data-grow>
+          <Image
+            src={photo("room-estudio")}
+            alt="Sala con sofá azul y piso de madera en espiga"
+            widths={[480, 800, 1200]}
+            sizes="(min-width: 1024px) 24vw, 90vw"
+            loading="lazy"
+          />
+        </figure>
       </div>
       <footer class="house-footer">
         <span>© {new Date().getFullYear()} {studio.name}</span>
@@ -235,8 +213,6 @@ const hang = [
       </footer>
     </Room>
   </main>
-
-  <FloorPlan />
 </Base>
 
 <script>

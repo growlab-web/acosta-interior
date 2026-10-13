@@ -1,55 +1,92 @@
 ---
 /**
- * Una habitación de la casa. En móvil es una sección normal; en el recorrido
- * de escritorio es un alzado (pared + piso) con el hueco de la puerta que
- * lleva a la siguiente habitación.
+ * Una escena de la casa: una foto a pantalla completa con el contenido encima.
+ * En móvil es una sección apilada; en el recorrido de escritorio las escenas se
+ * superponen y el scroll hace zoom de una a la siguiente.
+ * La fachada es especial (`door`): su pared es un render con el hueco de la
+ * puerta recortado, por el que se ve la escena siguiente.
  */
+import { Image } from "astro:assets";
+import { photo as getPhoto } from "../data/site";
+
 interface Props {
-  id: string;
+  id?: string;
+  /** Sección a la que pertenece (varias escenas pueden compartirla). */
+  nav: string;
+  /** Nombre de la habitación que se muestra en el menú flotante. */
+  room: string;
   label: string;
-  wall: string;
-  floor: string;
-  /** Hueco de la puerta en fracciones del viewport: x (izquierda), w (ancho), top. */
-  door?: { x?: number; w?: number; top?: number };
-  /** Pared más ancha que la pantalla: se recorre de lado y la puerta queda al final. */
-  wide?: boolean;
-  /** Rótulo sobre la puerta: nombre de la habitación siguiente. */
-  sign?: string;
-  /** Aviso bajo la puerta que invita a seguir deslizando. */
-  hint?: string;
-  /** Imagen de fondo de la pared (URL ya optimizada). */
+  photo?: string;
+  alt?: string;
+  /** Punto de interés de la foto: hacia ahí se hace zoom. */
+  focus?: string;
+  /** Oscurecimiento de la foto (0 a 1) para que el texto se lea. */
+  scrim?: number;
+  /** Color del texto de la cabecera sobre esta escena. */
+  tone?: "light" | "dark";
+  toneWalk?: "light" | "dark";
+  door?: boolean;
+  /** URL del render de la fachada (solo con `door`). */
   image?: string;
+  hint?: string;
+  eager?: boolean;
+  class?: string;
 }
 
-const { id, label, wall, floor, door, wide = false, sign, hint, image } = Astro.props;
+const {
+  id,
+  nav,
+  room,
+  label,
+  photo,
+  alt = "",
+  focus = "50% 50%",
+  scrim = 0.3,
+  tone = "light",
+  toneWalk,
+  door = false,
+  image,
+  hint,
+  eager = false,
+  class: cls,
+} = Astro.props;
 
-const vars = [`--wall:${wall}`, `--floor:${floor}`];
+const vars = [`--focus:${focus}`, `--scrim:${scrim}`];
 if (image) vars.push(`--img:url(${image})`);
-if (door) {
-  if (door.w !== undefined) vars.push(`--dw:${door.w * 100}vw`);
-  if (door.top !== undefined) vars.push(`--dt:${door.top * 100}vh`);
-  if (!wide && door.x !== undefined) vars.push(`--dx:${door.x * 100}vw`);
-}
-// La geometría real del hueco la mide house.ts sobre el elemento .door.
 ---
 
 <section
-  class:list={["room", wide && "room--wide"]}
+  class:list={["room", cls]}
   id={id}
   aria-label={label}
+  data-nav={nav}
+  data-room={room}
+  data-tone={tone}
+  data-tone-walk={toneWalk}
   data-door={door ? "" : undefined}
   style={vars.join(";")}
 >
   <div class="room__in">
     <div class="room__out">
-      <div class="room__pan">
-        <div class="room__wall decor" aria-hidden="true"></div>
-        <div class="room__floor decor" aria-hidden="true"><i></i></div>
-        {
-          door && (
+      {
+        photo && (
+          <div class="room__bg">
+            <Image
+              src={getPhoto(photo)}
+              alt={alt}
+              widths={[800, 1200, 1800, 2400]}
+              sizes="100vw"
+              loading={eager ? "eager" : "lazy"}
+            />
+          </div>
+        )
+      }
+      {
+        door && (
+          <>
+            <div class="room__wall decor" aria-hidden="true" />
+            <div class="room__floor decor" aria-hidden="true" />
             <div class="door decor" aria-hidden="true">
-              {sign && <span class="door__sign">{sign}</span>}
-              <span class="door__beyond" />
               {hint && (
                 <span class="door__hint scroll-hint">
                   {hint}
@@ -58,13 +95,20 @@ if (door) {
               )}
               <slot name="door" />
             </div>
-          )
-        }
-        <div class="room__content">
-          <slot />
-        </div>
+          </>
+        )
+      }
+      <div class="room__content">
+        <slot />
       </div>
+      {
+        hint && !door && (
+          <p class="room__hint scroll-hint" aria-hidden="true">
+            {hint}
+            <i />
+          </p>
+        )
+      }
     </div>
-    <div class="room__shade decor" aria-hidden="true"></div>
   </div>
 </section>

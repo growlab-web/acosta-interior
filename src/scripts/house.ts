@@ -8,10 +8,10 @@ gsap.registerPlugin(ScrollTrigger, ScrollToPlugin, SplitText);
 /** Debe coincidir con la consulta del script inline de Base.astro. */
 const WALK = "(min-width: 1024px) and (min-height: 640px) and (prefers-reduced-motion: no-preference)";
 const REDUCED = "(prefers-reduced-motion: reduce)";
-/** Línea donde la pared toca el piso, en fracción del alto (--floor-line). */
+/** Línea donde la pared de la fachada toca el piso, en fracción del alto (--floor-line). */
 const FLOOR = 0.76;
 /** Cuánto scroll (en altos de pantalla) dura una unidad de la línea de tiempo. */
-const SCROLL_PER_UNIT = 0.62;
+const SCROLL_PER_UNIT = 0.5;
 
 const root = document.documentElement;
 const house = document.querySelector<HTMLElement>("#house")!;
@@ -21,56 +21,50 @@ const curtain = document.querySelector<HTMLElement>(".curtain")!;
 type GoTo = (id: string, instant?: boolean) => void;
 let goTo: GoTo = () => {};
 
-/* ───────── Estado de navegación (cabecera + plano) ───────── */
+/* ───────── Estado de navegación (cabecera + menú flotante) ───────── */
 
-const navLinks = gsap.utils.toArray<HTMLElement>("[data-nav]");
-const planLinks = gsap.utils.toArray<SVGAElement>("[data-plan]");
-const planRoom = document.querySelector("[data-plan-room]");
-const planSection = document.querySelector("[data-plan-section]");
+const goLinks = gsap.utils.toArray<HTMLElement>("[data-go]");
+const planRooms = gsap.utils.toArray<SVGElement>("[data-plan]");
+const dockLabel = document.querySelector("[data-dock-label]");
 let active = -1;
 
-function setActive(index: number, trapFocus: boolean) {
+function setActive(index: number, walking: boolean) {
   if (index === active) return;
   active = index;
-  const id = rooms[index].id;
-  navLinks.forEach((a) => a.setAttribute("aria-current", String(a.dataset.nav === id)));
-  planLinks.forEach((a) => {
-    const on = a.dataset.plan === id;
-    a.setAttribute("aria-current", String(on));
-    if (on) {
-      if (planRoom) planRoom.textContent = a.dataset.room ?? "";
-      if (planSection) planSection.textContent = a.dataset.section ?? "";
-    }
-  });
-  // En el recorrido solo la habitación actual es interactiva.
-  rooms.forEach((room, i) => (room.inert = trapFocus && i !== index));
+  const room = rooms[index];
+  const section = room.dataset.nav;
+  goLinks.forEach((a) => a.setAttribute("aria-current", String(a.dataset.go === section)));
+  planRooms.forEach((r) => r.setAttribute("aria-current", String(r.dataset.plan === section)));
+  if (dockLabel) dockLabel.textContent = room.dataset.room ?? "";
+  // La cabecera cambia de color según lo que tenga detrás.
+  root.dataset.tone = (walking && room.dataset.toneWalk) || room.dataset.tone || "light";
+  // En el recorrido solo la escena actual es interactiva.
+  rooms.forEach((r, i) => (r.inert = walking && i !== index));
 }
 
-/* ───────── Geometría de las puertas ───────── */
+/* ───────── Geometría de la puerta de la fachada ───────── */
 
 interface Door {
   ox: number;
   oy: number;
   /** Escala con la que el hueco cubre toda la pantalla. */
   S: number;
-  /** Escala inicial de la habitación siguiente, vista a través del hueco. */
+  /** Escala inicial de la escena siguiente, vista a través del hueco. */
   s0: number;
   /** Exponente de paralaje: el fondo crece como (escala de la pared)^lag, siempre cubriendo el hueco. */
   lag: number;
 }
 
 function doorOf(room: HTMLElement): Door | null {
-  // Se mide el hueco real (offset*, sin transformaciones): la puerta de la fachada
-  // depende de la proporción de la pantalla porque sale del render de fondo.
+  // Se mide el hueco real (offset*, sin transformaciones): la puerta depende de la
+  // proporción de la pantalla porque sale del render de fondo.
   const el = room.querySelector<HTMLElement>(".door");
   if (!el) return null;
   const w = el.offsetWidth / window.innerWidth;
   const top = el.offsetTop / window.innerHeight;
-  // En la sala la puerta está al final de la pared y acaba centrada tras recorrerla.
-  const x = room.classList.contains("room--wide") ? 0.5 - w / 2 : el.offsetLeft / window.innerWidth;
-  const L = x;
-  const R = x + w;
-  const ox = x + w / 2;
+  const L = el.offsetLeft / window.innerWidth;
+  const R = L + w;
+  const ox = L + w / 2;
   const oy = (top + FLOOR) / 2;
   const S = Math.max(ox / (ox - L), (1 - ox) / (R - ox), oy / (oy - top), (1 - oy) / (FLOOR - oy)) * 1.03;
   // Lado del hueco que más tarda en salir de pantalla: fija cuánto puede "retrasarse" el fondo.
@@ -86,7 +80,7 @@ function doorOf(room: HTMLElement): Door | null {
 const approach = (a: number, b: number) => (p: number) => (a / (1 - p * (1 - a / b)) - a) / (b - a);
 
 /**
- * La habitación del fondo está más lejos, así que crece más despacio que la pared que cruzamos
+ * La escena del fondo está más lejos, así que crece más despacio que la pared que cruzamos
  * (paralaje), pero nunca tan despacio como para dejar ver el vacío por el hueco de la puerta.
  */
 const beyondEase = ({ S, s0, lag }: Door) => {
@@ -94,25 +88,36 @@ const beyondEase = ({ S, s0, lag }: Door) => {
   return (p: number) => (Math.min(1, s0 * (1 + wall(p) * (S - 1)) ** lag) - s0) / (1 - s0);
 };
 
+/* ───────── Texto ───────── */
+
+/** Letras de los titulares marcados con data-blur, listas para entrar desenfocadas. */
+function splitChars(scope: HTMLElement) {
+  return gsap.utils
+    .toArray<HTMLElement>("[data-blur]", scope)
+    .map((el) => SplitText.create(el, { type: "words,chars" }).chars as HTMLElement[]);
+}
+
+const BLUR_FROM = { autoAlpha: 0, filter: "blur(14px)", yPercent: 22 };
+const BLUR_TO = { autoAlpha: 1, filter: "blur(0px)", yPercent: 0 };
+
 /* ───────── Recorrido de escritorio ───────── */
 
 interface Part {
   room: HTMLElement;
-  id: string;
+  label: string;
   inn: HTMLElement;
   out: HTMLElement;
-  pan: HTMLElement;
-  shade: HTMLElement;
+  bg: HTMLElement | null;
   content: HTMLElement;
-  beyond: HTMLElement | null;
+  hint: HTMLElement | null;
   reveal: HTMLElement[];
+  grow: HTMLElement[];
+  titles: HTMLElement[][];
   door: Door | null;
 }
 
-type Dwell = (tl: gsap.core.Timeline, part: Part, next?: Part) => void;
-
-/** Lo que pasa mientras se está dentro de cada habitación, antes de caminar a la siguiente. */
-const dwell: Record<string, Dwell> = {
+/** Lo que pasa mientras se está dentro de una escena, además del zoom lento de la foto. */
+const dwell: Record<string, (tl: gsap.core.Timeline, part: Part) => void> = {
   fachada(tl, part) {
     // La puerta de entrada se abre hacia adentro.
     tl.to(part.room.querySelector(".leaf--l"), { rotationY: 84, duration: 0.75, ease: "power1.inOut" }, 0).to(
@@ -121,18 +126,6 @@ const dwell: Record<string, Dwell> = {
       0,
     );
   },
-  estudio(tl, part) {
-    tl.fromTo(part.room.querySelector(".doorway--hang img"), { yPercent: 0 }, { yPercent: -10, duration: 0.6 });
-  },
-  proyectos(tl, part, next) {
-    // Se camina a lo largo de la pared hasta que la puerta queda centrada.
-    const travel = () => part.pan.scrollWidth - window.innerWidth;
-    tl.to(part.pan, { x: () => -travel(), duration: 3.4, ease: "sine.inOut" });
-    if (next) tl.fromTo(next.inn, { x: () => window.innerWidth * 0.2 }, { x: 0, duration: 1.4, ease: "sine.out" }, "<2");
-  },
-  servicios(tl, part) {
-    tl.fromTo(part.room.querySelector(".doorway--hang img"), { yPercent: 0 }, { yPercent: -10, duration: 0.6 });
-  },
   testimonios(tl, part) {
     const quotes = gsap.utils.toArray<HTMLElement>(".quote", part.room);
     const dots = gsap.utils.toArray<HTMLElement>(".quote-dots i", part.room);
@@ -140,14 +133,11 @@ const dwell: Record<string, Dwell> = {
     quotes.forEach((quote, i) => {
       if (i === 0) return;
       tl.to(quotes[i - 1], { autoAlpha: 0, y: -24, duration: 0.3, ease: "power1.in" }, "+=0.4")
-        .to(dots[i - 1], { opacity: 0.2, duration: 0.3 }, "<")
+        .to(dots[i - 1], { opacity: 0.25, duration: 0.3 }, "<")
         .fromTo(quote, { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.35, ease: "power1.out" })
         .to(dots[i], { opacity: 1, duration: 0.35 }, "<");
     });
     tl.to({}, { duration: 0.4 });
-  },
-  contacto(tl) {
-    tl.to({}, { duration: 0.35 });
   },
 };
 
@@ -155,62 +145,92 @@ function buildWalk() {
   root.classList.add("walk");
   active = -1;
 
-  const pick = <T extends HTMLElement>(el: HTMLElement, sel: string) => el.querySelector<T>(sel)!;
-  const parts: Part[] = rooms.map((room) => ({
+  const parts: Part[] = rooms.map((room, i) => ({
     room,
-    id: room.id,
-    inn: pick(room, ".room__in"),
-    out: pick(room, ".room__out"),
-    pan: pick(room, ".room__pan"),
-    shade: pick(room, ".room__shade"),
-    content: pick(room, ".room__content"),
-    beyond: room.querySelector<HTMLElement>(".door__beyond"),
+    label: room.id || `escena-${i}`,
+    inn: room.querySelector<HTMLElement>(".room__in")!,
+    out: room.querySelector<HTMLElement>(".room__out")!,
+    bg: room.querySelector<HTMLElement>(".room__bg"),
+    content: room.querySelector<HTMLElement>(".room__content")!,
+    hint: room.querySelector<HTMLElement>(".room__hint, .door__hint"),
     reveal: gsap.utils.toArray<HTMLElement>("[data-reveal]", room),
+    grow: gsap.utils.toArray<HTMLElement>("[data-grow]", room),
+    titles: splitChars(room),
     door: doorOf(room),
   }));
 
   gsap.set(rooms, { autoAlpha: 0, zIndex: (i) => rooms.length - i });
+  // Tras la puerta de entrada se ve desde el inicio el interior real.
   gsap.set(rooms.slice(0, 2), { autoAlpha: 1 });
-  // Tras la puerta de entrada se ve desde el inicio el interior real, no el relleno.
-  gsap.set(parts[0].beyond, { autoAlpha: 0 });
 
   const tl = gsap.timeline({ defaults: { ease: "none" }, paused: true });
-  /** Momento desde el que cada habitación cuenta como "la actual". */
+  /** Momento desde el que cada escena cuenta como "la actual". */
   const enterAt = [0];
 
   parts.forEach((part, i) => {
-    tl.addLabel(part.id);
-    dwell[part.id]?.(tl, part, parts[i + 1]);
+    tl.addLabel(part.label);
+
+    // Estancia: lo propio de la escena y, mientras tanto, un zoom lento de la foto.
+    const from = tl.duration();
+    dwell[part.room.id]?.(tl, part);
+    if (tl.duration() - from < 0.4) tl.to({}, { duration: 0.4 - (tl.duration() - from) });
+    if (part.bg && !part.door) tl.to(part.bg, { scale: 1.08, duration: tl.duration() - from }, from);
 
     const next = parts[i + 1];
-    if (!next || !part.door) return;
+    if (!next) return;
 
-    const { ox, oy, S, s0 } = part.door;
-    const origin = `${ox * 100}% ${oy * 100}%`;
     const walk = `walk-${i}`;
-    gsap.set(part.out, { transformOrigin: origin });
-    gsap.set(next.inn, { transformOrigin: origin });
-    gsap.set(next.shade, { opacity: 0.2 });
-    const far = beyondEase(part.door);
+    const leaving = [part.content, part.hint].filter(Boolean);
+    let revealAt: string;
 
-    // En la fachada se empieza a caminar mientras la puerta termina de abrirse.
-    tl.addLabel(walk, part.id === "fachada" ? "-=0.3" : ">")
-      .to([part.content, part.room.querySelector(".door__hint")], { autoAlpha: 0, duration: 0.4 }, walk)
-      .fromTo(part.out, { scale: 1 }, { scale: S, duration: 1, ease: approach(1, S) }, walk)
-      .fromTo(next.inn, { scale: s0 }, { scale: 1, duration: 1, ease: far }, walk)
-      .to(next.shade, { opacity: 0, duration: 0.7 }, walk)
-      .set(part.room, { autoAlpha: 0 }, `${walk}+=1`)
-      .fromTo(
-        next.reveal,
-        { autoAlpha: 0, y: 34 },
-        { autoAlpha: 1, y: 0, duration: 0.34, stagger: 0.045, ease: "power2.out" },
-        `${walk}+=0.6`,
+    if (part.door) {
+      // Fachada: se cruza el hueco de la puerta; la pared crece y la escena del fondo se acerca.
+      const { ox, oy, S, s0 } = part.door;
+      const origin = `${ox * 100}% ${oy * 100}%`;
+      gsap.set(part.out, { transformOrigin: origin });
+      gsap.set(next.inn, { transformOrigin: origin });
+      tl.addLabel(walk, "-=0.3")
+        .to(leaving, { autoAlpha: 0, duration: 0.4 }, walk)
+        .fromTo(part.out, { scale: 1 }, { scale: S, duration: 1, ease: approach(1, S) }, walk)
+        .fromTo(next.inn, { scale: s0 }, { scale: 1, duration: 1, ease: beyondEase(part.door) }, walk)
+        .set(part.room, { autoAlpha: 0 }, `${walk}+=1`);
+      revealAt = `${walk}+=0.6`;
+    } else {
+      // Zoom continuo: la foto actual se acerca a su punto de interés y se funde con la
+      // siguiente, que llega todavía ampliada y termina de asentarse.
+      tl.addLabel(walk)
+        .to(leaving, { autoAlpha: 0, duration: 0.3 }, walk)
+        .set(next.room, { autoAlpha: 1 }, walk)
+        .to(part.room, { autoAlpha: 0, duration: 0.5, ease: "power1.in" }, `${walk}+=0.45`);
+      if (part.bg) tl.to(part.bg, { scale: 2.2, duration: 0.95, ease: "power2.in" }, walk);
+      if (next.bg) tl.fromTo(next.bg, { scale: 1.32 }, { scale: 1, duration: 0.95, ease: "power2.out" }, `${walk}+=0.4`);
+      revealAt = `${walk}+=0.8`;
+    }
+
+    // Entrada del contenido: titulares letra a letra saliendo del desenfoque, luego el resto.
+    next.titles.forEach((chars, k) => {
+      tl.fromTo(
+        chars,
+        BLUR_FROM,
+        { ...BLUR_TO, duration: 0.3, stagger: { amount: 0.3 }, ease: "power2.out" },
+        `${revealAt}+=${k * 0.1}`,
       );
-
-    // La habitación de más allá solo se enciende cuando ya estamos entrando a la siguiente.
-    const beyond = parts[i + 2];
-    if (beyond && next.beyond) {
-      tl.set(beyond.room, { autoAlpha: 1 }, `${walk}+=0.68`).to(next.beyond, { autoAlpha: 0, duration: 0.3 }, `${walk}+=0.7`);
+    });
+    if (next.reveal.length) {
+      tl.fromTo(
+        next.reveal,
+        { autoAlpha: 0, y: 30 },
+        { autoAlpha: 1, y: 0, duration: 0.3, stagger: 0.04, ease: "power2.out" },
+        `${revealAt}+=0.15`,
+      );
+    }
+    if (next.grow.length) {
+      tl.fromTo(
+        next.grow,
+        { autoAlpha: 0, scale: 0.6 },
+        { autoAlpha: 1, scale: 1, duration: 0.6, ease: "power2.out" },
+        revealAt,
+      );
     }
 
     enterAt[i + 1] = tl.labels[walk] + 0.6;
@@ -247,7 +267,7 @@ function buildWalk() {
       sync();
     };
     if (instant) return jump();
-    // Corte a negro: atravesar varias habitaciones a toda velocidad marea.
+    // Corte a negro: atravesar varias escenas a toda velocidad marea.
     gsap
       .timeline()
       .to(curtain, { autoAlpha: 1, duration: 0.3, ease: "power1.in" })
@@ -264,7 +284,7 @@ function buildWalk() {
   };
 }
 
-/* ───────── Secciones apiladas (móvil, tablet, movimiento reducido) ───────── */
+/* ───────── Escenas apiladas (móvil, tablet, movimiento reducido) ───────── */
 
 function buildStacked(reduced: boolean) {
   root.classList.remove("walk");
@@ -285,27 +305,35 @@ function buildStacked(reduced: boolean) {
       onToggle: (self) => self.isActive && setActive(i, false),
     });
   });
+  setActive(0, false);
 
   if (reduced) return;
 
-  // Cada foto es un umbral: las hojas de la puerta se abren al llegar.
-  gsap.utils.toArray<HTMLElement>("[data-doorway]").forEach((el, i) => {
-    const leaves = el.querySelectorAll(".doorway__leaf");
-    if (i === 0) {
-      gsap.to(leaves, { scaleX: 0, duration: 1.4, ease: "power3.inOut", delay: 0.5 });
-      return;
+  rooms.forEach((room, i) => {
+    // La foto se mueve un poco más lento que la página.
+    const img = room.querySelector(".room__bg img");
+    if (img) {
+      gsap.fromTo(
+        img,
+        { scale: 1.16, yPercent: i === 0 ? 0 : -5 },
+        { scale: 1.16, yPercent: 5, ease: "none", scrollTrigger: { trigger: room, start: "top bottom", end: "bottom top", scrub: true } },
+      );
     }
-    gsap.to(leaves, {
-      scaleX: 0,
-      ease: "none",
-      scrollTrigger: { trigger: el, start: "top 85%", end: "top 30%", scrub: 0.5 },
+    splitChars(room).forEach((chars) => {
+      gsap.fromTo(chars, BLUR_FROM, {
+        ...BLUR_TO,
+        duration: 0.9,
+        stagger: { amount: 0.5 },
+        ease: "power3.out",
+        scrollTrigger: { trigger: chars[0], start: "top 90%", once: true },
+      });
     });
   });
 
-  const reveal = gsap.utils.toArray<HTMLElement>("[data-reveal]");
+  const reveal = gsap.utils.toArray<HTMLElement>("[data-reveal], [data-grow]");
   gsap.set(reveal, { autoAlpha: 0, y: 28 });
   ScrollTrigger.batch(reveal, {
-    start: "top 88%",
+    start: "top 90%",
     once: true,
     onEnter: (batch) => gsap.to(batch, { autoAlpha: 1, y: 0, duration: 0.9, stagger: 0.08, ease: "power3.out", overwrite: true }),
   });
@@ -319,10 +347,10 @@ function intro(reduced: boolean) {
   gsap.set(wordmark, { visibility: "visible" });
   if (reduced) return;
 
-  const split = SplitText.create(".wordmark span", { type: "chars", mask: "chars", aria: "none" });
+  const split = SplitText.create(".wordmark span", { type: "chars", aria: "none" });
   gsap
     .timeline({ delay: 0.15 })
-    .from(split.chars, { yPercent: 110, duration: 1.2, stagger: 0.04, ease: "power4.out" })
+    .fromTo(split.chars, BLUR_FROM, { ...BLUR_TO, duration: 1.1, stagger: 0.05, ease: "power3.out" })
     .from("[data-hero]", { autoAlpha: 0, y: 20, duration: 0.9, stagger: 0.12, ease: "power3.out" }, "-=0.7");
 }
 
@@ -339,8 +367,8 @@ function start() {
 
 let mm = start();
 
-// La geometría de las puertas depende del tamaño de pantalla: al redimensionar
-// dentro del recorrido se reconstruye y se vuelve a la habitación en la que se estaba.
+// La geometría de la puerta depende del tamaño de pantalla: al redimensionar
+// dentro del recorrido se reconstruye y se vuelve a la sección en la que se estaba.
 let size = `${window.innerWidth}x${window.innerHeight}`;
 let resizeTimer = 0;
 window.addEventListener("resize", () => {
@@ -350,7 +378,7 @@ window.addEventListener("resize", () => {
     if (now === size) return;
     size = now;
     if (!root.classList.contains("walk")) return;
-    const id = rooms[Math.max(active, 0)].id;
+    const id = rooms[Math.max(active, 0)].dataset.nav!;
     mm.revert();
     mm = start();
     goTo(id, true);
