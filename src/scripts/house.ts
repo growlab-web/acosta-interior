@@ -22,11 +22,9 @@ const curtain = document.querySelector<HTMLElement>(".curtain")!;
 type GoTo = (id: string, instant?: boolean) => void;
 let goTo: GoTo = () => {};
 
-/* ───────── Estado de navegación (cabecera + menú flotante) ───────── */
+/* ───────── Estado de navegación (barra superior) ───────── */
 
 const goLinks = gsap.utils.toArray<HTMLElement>("[data-go]");
-const planRooms = gsap.utils.toArray<SVGElement>("[data-plan]");
-const dockLabel = document.querySelector("[data-dock-label]");
 let active = -1;
 
 function setActive(index: number, walking: boolean) {
@@ -35,8 +33,6 @@ function setActive(index: number, walking: boolean) {
   const room = rooms[index];
   const section = room.dataset.nav;
   goLinks.forEach((a) => a.setAttribute("aria-current", String(a.dataset.go === section)));
-  planRooms.forEach((r) => r.setAttribute("aria-current", String(r.dataset.plan === section)));
-  if (dockLabel) dockLabel.textContent = room.dataset.room ?? "";
   // La cabecera cambia de color según lo que tenga detrás.
   root.dataset.tone = (walking && room.dataset.toneWalk) || room.dataset.tone || "light";
   // En el recorrido solo la escena actual es interactiva.

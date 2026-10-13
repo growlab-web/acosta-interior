@@ -18,6 +18,7 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { Reflector } from "three/addons/objects/Reflector.js";
 
 export interface View {
   px: number;
@@ -190,6 +191,73 @@ function weaveBump(seed: number, coarse = 4) {
   }, true);
 }
 
+/**
+ * Color de una tela: hilos claros y oscuros cruzados y un moteado suave. Va en gris claro
+ * porque el material la multiplica por su color.
+ */
+function fabricMap(seed: number, coarse = 4) {
+  const rand = seeded(seed);
+  return canvasTexture(256, 256, (ctx) => {
+    ctx.fillStyle = "#e9e9e9";
+    ctx.fillRect(0, 0, 256, 256);
+    for (let y = 0; y < 256; y += coarse) {
+      for (let x = 0; x < 256; x += coarse) {
+        const over = (x / coarse + y / coarse) % 2 === 0;
+        const v = (over ? 240 : 205) + rand() * 30 - 15;
+        ctx.fillStyle = `rgb(${v},${v},${v - 3})`;
+        ctx.fillRect(x, y, coarse - 0.5, coarse - 0.5);
+      }
+    }
+    // Hilos sueltos más gruesos, como en un lino real.
+    for (let i = 0; i < 70; i++) {
+      ctx.fillStyle = `rgba(${rand() > 0.5 ? "255,255,255" : "120,110,95"}, ${0.12 + rand() * 0.2})`;
+      if (rand() > 0.5) ctx.fillRect(rand() * 256, rand() * 256, 20 + rand() * 70, 1.5);
+      else ctx.fillRect(rand() * 256, rand() * 256, 1.5, 20 + rand() * 70);
+    }
+  });
+}
+
+/** Color del cuero: manchas de desgaste y arrugas finas, sobre gris claro (se tiñe con el material). */
+function leatherMap() {
+  const rand = seeded(23);
+  return canvasTexture(512, 512, (ctx) => {
+    ctx.fillStyle = "#dcdcdc";
+    ctx.fillRect(0, 0, 512, 512);
+    ctx.filter = "blur(14px)";
+    for (let i = 0; i < 90; i++) {
+      ctx.fillStyle = `rgba(${rand() > 0.45 ? "255,255,255" : "90,70,55"}, ${0.1 + rand() * 0.16})`;
+      ctx.beginPath();
+      ctx.arc(rand() * 512, rand() * 512, 20 + rand() * 70, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.filter = "none";
+    for (let i = 0; i < 260; i++) {
+      ctx.strokeStyle = `rgba(60,40,28,${0.05 + rand() * 0.12})`;
+      ctx.lineWidth = 0.5 + rand();
+      const x = rand() * 512;
+      const y = rand() * 512;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.quadraticCurveTo(x + rand() * 40 - 20, y + rand() * 40 - 20, x + rand() * 70 - 35, y + rand() * 70 - 35);
+      ctx.stroke();
+    }
+  });
+}
+
+/** Metal cepillado: rayas finas en una dirección que rompen el reflejo, como en el latón real. */
+function brushedRoughness() {
+  const rand = seeded(43);
+  return canvasTexture(256, 256, (ctx) => {
+    ctx.fillStyle = "#808080";
+    ctx.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 1400; i++) {
+      const v = 70 + rand() * 120;
+      ctx.fillStyle = `rgba(${v},${v},${v},0.5)`;
+      ctx.fillRect(0, rand() * 256, 256, 0.6 + rand() * 0.8);
+    }
+  }, true);
+}
+
 /** Cuero: poro irregular de baja frecuencia. */
 function leatherBump() {
   const rand = seeded(19);
@@ -272,7 +340,7 @@ export function createApartment(canvas: HTMLCanvasElement, photos: string[]): Ap
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.92;
+  renderer.toneMappingExposure = 0.86;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   // La escena es estática: las sombras se calculan una sola vez.
@@ -284,7 +352,8 @@ export function createApartment(canvas: HTMLCanvasElement, photos: string[]): Ap
   scene.fog = new THREE.Fog(0xbdb6aa, 20, 70);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  const studioEnv = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environment = studioEnv;
   scene.environmentIntensity = 0.5;
 
   const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 90);
@@ -304,12 +373,20 @@ export function createApartment(canvas: HTMLCanvasElement, photos: string[]): Ap
   pores.repeat.set(3, 3);
 
   /** Tela tapizada: relieve de tejido y un brillo rasante suave (sheen), como el de un tapiz real. */
+  const linenMap = fabricMap(51);
+  const hide = leatherMap();
+  const brushed = brushedRoughness();
+  linenMap.repeat.set(7, 7);
+  hide.repeat.set(1.5, 1.5);
+  brushed.repeat.set(2, 2);
+
   const fabric = (color: number, sheen = 0.5) =>
     new THREE.MeshPhysicalMaterial({
       color,
-      roughness: 0.96,
+      map: linenMap,
+      roughness: 0.92,
       bumpMap: weave,
-      bumpScale: 2.2,
+      bumpScale: 3.4,
       sheen,
       sheenRoughness: 0.65,
       sheenColor: new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.25),
@@ -322,9 +399,9 @@ export function createApartment(canvas: HTMLCanvasElement, photos: string[]): Ap
       map: floorTex.map,
       bumpMap: floorTex.bump,
       bumpScale: 2.4,
-      roughness: 0.46,
-      clearcoat: 0.45,
-      clearcoatRoughness: 0.32,
+      roughness: 0.4,
+      clearcoat: 0.5,
+      clearcoatRoughness: 0.22,
     }),
     ceiling: new THREE.MeshStandardMaterial({ color: C.ceiling, roughness: 1, emissive: C.ceiling, emissiveIntensity: 0.22 }),
     base: std(C.base, 0.7),
@@ -332,17 +409,18 @@ export function createApartment(canvas: HTMLCanvasElement, photos: string[]): Ap
     olive: new THREE.MeshPhysicalMaterial({ color: C.olive, roughness: 0.5, clearcoat: 0.25, clearcoatRoughness: 0.5 }),
     oliveDeep: new THREE.MeshPhysicalMaterial({ color: C.oliveDeep, roughness: 0.52, clearcoat: 0.25, clearcoatRoughness: 0.5 }),
     velvet: fabric(C.olive, 0.35),
-    brass: std(C.brass, 0.27, 1),
+    brass: new THREE.MeshStandardMaterial({ color: C.brass, metalness: 1, roughness: 0.42, roughnessMap: brushed }),
     cream: fabric(C.cream),
     linen: fabric(C.linen),
-    rug: new THREE.MeshStandardMaterial({ color: 0xcfc6b6, roughness: 1, bumpMap: rugWeave, bumpScale: 4 }),
+    rug: new THREE.MeshStandardMaterial({ color: 0xcfc6b6, map: linenMap, roughness: 1, bumpMap: rugWeave, bumpScale: 6 }),
     leather: new THREE.MeshPhysicalMaterial({
       color: C.leather,
-      roughness: 0.5,
+      map: hide,
+      roughness: 0.42,
       bumpMap: pores,
-      bumpScale: 0.9,
-      clearcoat: 0.18,
-      clearcoatRoughness: 0.6,
+      bumpScale: 1.4,
+      clearcoat: 0.35,
+      clearcoatRoughness: 0.4,
     }),
     walnut: new THREE.MeshPhysicalMaterial({
       map: walnutTex.map,
@@ -354,10 +432,10 @@ export function createApartment(canvas: HTMLCanvasElement, photos: string[]): Ap
     }),
     charcoal: std(C.charcoal, 0.55, 0.35),
     // Cerámica mate de macetas y jarrones.
-    stone: std(C.stone, 0.62),
-    marble: new THREE.MeshPhysicalMaterial({ map: marble, roughness: 0.2, clearcoat: 0.5, clearcoatRoughness: 0.15 }),
+    stone: new THREE.MeshPhysicalMaterial({ color: C.stone, roughness: 0.38, clearcoat: 0.6, clearcoatRoughness: 0.25 }),
+    marble: new THREE.MeshPhysicalMaterial({ map: marble, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.05 }),
     leaf: new THREE.MeshPhysicalMaterial({ color: C.leaf, roughness: 0.5, sheen: 0.3, sheenColor: new THREE.Color(0x9fbf7a) }),
-    mirror: std(0x8f9491, 0.06, 1),
+    mirror: std(0xe6e8e6, 0.02, 1),
     // Muy por encima del umbral del resplandor (bloom): solo brilla lo que de verdad emite luz.
     glow: new THREE.MeshBasicMaterial({ color: new THREE.Color(C.glow).multiplyScalar(6) }),
     daylight: new THREE.MeshBasicMaterial({ color: new THREE.Color(0xf6f1e6).multiplyScalar(3.8), fog: false }),
@@ -521,6 +599,36 @@ export function createApartment(canvas: HTMLCanvasElement, photos: string[]): Ap
   floor.receiveShadow = true;
   scene.add(floor);
 
+  // Reflejo real del piso: un espejo plano semitransparente justo encima de la madera. Refleja
+  // muebles, cuadros, lámparas y ventanal en su sitio exacto, como un piso barnizado. Cuesta
+  // dibujar la escena una segunda vez por cuadro, así que solo está en calidad alta.
+  const sheen = new Reflector(new THREE.PlaneGeometry(floorW, floorD), {
+    textureWidth: 1024,
+    textureHeight: 640,
+    clipBias: 0.003,
+    multisample: 0,
+  });
+  const sheenMat = sheen.material as THREE.ShaderMaterial;
+  sheenMat.fragmentShader = sheenMat.fragmentShader.replace(
+    "gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );",
+    "gl_FragColor = vec4( base.rgb, 0.26 );",
+  );
+  sheenMat.transparent = true;
+  sheenMat.depthWrite = false;
+  sheen.rotation.x = -Math.PI / 2;
+  sheen.position.set((X0 + X1) / 2, 0.004, Z_BACK + floorD / 2);
+  scene.add(sheen);
+  // El espejo se redibuja cada vez que se pinta; con el posproceso eso serían varias veces
+  // por cuadro. Se limita a una.
+  let frame = 0;
+  let mirrored = -1;
+  const drawMirror = sheen.onBeforeRender;
+  sheen.onBeforeRender = function (...args) {
+    if (mirrored === frame) return;
+    mirrored = frame;
+    drawMirror.apply(this, args);
+  };
+
   const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(floorW, floorD), M.ceiling);
   ceiling.rotation.x = Math.PI / 2;
   ceiling.position.set((X0 + X1) / 2, H, Z_BACK + floorD / 2);
@@ -625,7 +733,9 @@ export function createApartment(canvas: HTMLCanvasElement, photos: string[]): Ap
           tex.repeat.y = img / frame;
           tex.offset.y = (1 - tex.repeat.y) / 2;
         }
-        art.material = new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.2, roughness: 0.85 });
+        // Con cristal: una capa brillante que refleja la sala sobre la foto.
+        art.material = new THREE.MeshPhysicalMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.16, roughness: 0.7, clearcoat: 1, clearcoatRoughness: 0.04 });
+        captureEnv();
         redraw();
       });
     }
@@ -728,10 +838,10 @@ export function createApartment(canvas: HTMLCanvasElement, photos: string[]): Ap
 
   /* ── Luz general ── */
 
-  scene.add(new THREE.HemisphereLight(0xfff6e8, 0x8a7d6c, 0.55));
+  scene.add(new THREE.HemisphereLight(0xfff6e8, 0x6d6154, 0.22));
   // Luz principal: cae casi vertical, como la suma de los focos del techo. Es la que proyecta
   // las sombras bajo los muebles; paredes y techo no las arrojan.
-  const key = new THREE.DirectionalLight(0xfff1dc, 1.35);
+  const key = new THREE.DirectionalLight(0xfff1dc, 2.3);
   key.position.set(8.5, 20, -3.5);
   key.target.position.set(12.5, 0, -8);
   key.castShadow = true;
@@ -744,10 +854,10 @@ export function createApartment(canvas: HTMLCanvasElement, photos: string[]): Ap
   key.shadow.camera.far = 40;
   key.shadow.bias = -0.0004;
   key.shadow.normalBias = 0.03;
-  key.shadow.radius = 7;
+  key.shadow.radius = 2.5;
   scene.add(key, key.target);
   // Relleno frío desde el ventanal: modela los volúmenes sin sumar otra sombra.
-  const fill = new THREE.DirectionalLight(0xeaf0f5, 0.5);
+  const fill = new THREE.DirectionalLight(0xeaf0f5, 0.35);
   fill.position.set(-10, 4, -7);
   fill.target.position.set(10, 1, -8);
   scene.add(fill, fill.target);
@@ -784,6 +894,26 @@ export function createApartment(canvas: HTMLCanvasElement, photos: string[]): Ap
 
   renderer.shadowMap.needsUpdate = true;
 
+  /* ── Reflejos reales ──
+     Se fotografía el departamento en 360° desde el centro de la sala y esa captura pasa a ser
+     el entorno que reflejan piso, mármol, latón, cristales y espejos: lo que se ve brillar es
+     el ventanal, las lámparas y los cuadros de verdad. La escena es estática, así que basta
+     con capturar al inicio y cuando termina de cargar cada foto. */
+  const cubeTarget = new THREE.WebGLCubeRenderTarget(512, { type: THREE.HalfFloatType });
+  const cubeCamera = new THREE.CubeCamera(0.1, 80, cubeTarget);
+  cubeCamera.position.set(11, 1.3, -8.3);
+  let roomEnv: THREE.Texture | null = null;
+  function captureEnv() {
+    scene.environment = studioEnv;
+    scene.environmentIntensity = 0.5;
+    sheen.visible = false;
+    cubeCamera.update(renderer, scene);
+    sheen.visible = high;
+    roomEnv?.dispose();
+    roomEnv = pmrem.fromCubemap(cubeTarget.texture).texture;
+    scene.environment = roomEnv;
+    scene.environmentIntensity = 0.62;
+  }
   /* ── Posproceso ──
      Oclusión ambiental (GTAO): oscurece rincones y el contacto de cada mueble con el piso, que es
      lo que más "asienta" los objetos. Resplandor (bloom): halo en lámparas y ventanal. */
@@ -793,12 +923,13 @@ export function createApartment(canvas: HTMLCanvasElement, photos: string[]): Ap
   );
   composer.addPass(new RenderPass(scene, camera));
   const ao = new GTAOPass(scene, camera, 1, 1);
-  ao.updateGtaoMaterial({ radius: 0.38, distanceExponent: 1, thickness: 0.55, scale: 1.15, samples: 16 });
+  ao.updateGtaoMaterial({ radius: 0.45, distanceExponent: 1, thickness: 0.55, scale: 1.5, samples: 16 });
   ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, rings: 2, samples: 16 });
   composer.addPass(ao);
   composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.16, 0.45, 3.4));
   composer.addPass(new OutputPass());
   let high = true;
+  captureEnv();
 
   /* ── API ── */
 
@@ -818,6 +949,7 @@ export function createApartment(canvas: HTMLCanvasElement, photos: string[]): Ap
         camera.position.y += oy;
         camera.lookAt(target);
       }
+      frame++;
       if (high) composer.render();
       else renderer.render(scene, camera);
     },
@@ -835,6 +967,7 @@ export function createApartment(canvas: HTMLCanvasElement, photos: string[]): Ap
     setQuality(next) {
       if (next === high) return;
       high = next;
+      sheen.visible = high;
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, high ? 1.5 : 1));
       api.resize();
     },
@@ -850,6 +983,8 @@ export function createApartment(canvas: HTMLCanvasElement, photos: string[]): Ap
           m.dispose();
         });
       });
+      roomEnv?.dispose();
+      cubeTarget.dispose();
       pmrem.dispose();
       renderer.dispose();
     },

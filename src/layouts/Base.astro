@@ -6,22 +6,18 @@ import "@fontsource/cormorant-garamond/400.css";
 import "@fontsource/cormorant-garamond/400-italic.css";
 import "../styles/global.css";
 import Header from "../components/Header.astro";
-import Dock from "../components/Dock.astro";
 import { studio } from "../data/site";
 
 interface Props {
   title?: string;
   description?: string;
   home?: boolean;
-  /** Texto del menú flotante en páginas interiores. */
-  dock?: string;
 }
 
 const {
   title = `${studio.name} | ${studio.tagline} en Lima`,
   description = "Estudio de diseño interior en Lima. Proyectos residenciales y comerciales con propósito, materialidad y emoción.",
   home = false,
-  dock,
 } = Astro.props;
 ---
 
@@ -48,7 +44,6 @@ const {
   <body>
     <Header home={home} />
     <slot />
-    <Dock home={home} label={dock} />
     <div class="curtain" aria-hidden="true"></div>
   </body>
 </html>

@@ -19,7 +19,7 @@ const { project, next } = Astro.props;
 const [cover, ...rest] = project.images;
 ---
 
-<Base title={`${project.title} | ${studio.name}`} description={project.description} dock="Proyecto">
+<Base title={`${project.title} | ${studio.name}`} description={project.description}>
   <main class="project">
     <header class="project__head">
       <a class="link back" href="/#proyectos" data-in>Volver a la sala</a>

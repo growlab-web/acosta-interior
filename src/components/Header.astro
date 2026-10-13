@@ -1,10 +1,17 @@
 ---
+/**
+ * Barra de navegación fija: logo, todas las secciones y el botón de contacto,
+ * siempre visibles (en móvil las secciones pasan a una segunda fila).
+ */
+import { rooms } from "../data/site";
+
 interface Props {
   home?: boolean;
 }
 
 const { home = false } = Astro.props;
 const to = (id: string) => (home ? `#${id}` : `/#${id}`);
+const links = rooms.filter((r) => r.id !== "fachada" && r.id !== "contacto");
 ---
 
 <header class:list={["site-header", !home && "site-header--solid"]}>
@@ -12,5 +19,8 @@ const to = (id: string) => (home ? `#${id}` : `/#${id}`);
     <b>Acosta</b>
     <span>Interior</span>
   </a>
-  <a class="site-header__cta" href={to("contacto")} data-go="contacto">Contacto</a>
+  <nav class="nav" aria-label="Principal">
+    {links.map((r) => <a href={to(r.id)} data-go={r.id}>{r.section}</a>)}
+  </nav>
+  <a class="nav__cta" href={to("contacto")} data-go="contacto">Contacto</a>
 </header>
